@@ -1,0 +1,18 @@
+{
+  "schema": "chronicle.receipt.example.v0",
+  "id": "receipt-example-001",
+  "producer": "ReceiptOS",
+  "summary": "A single verified work receipt with portable provenance and replay references.",
+  "proof_properties": [
+    "verifiable",
+    "portable",
+    "replayable",
+    "durable"
+  ],
+  "possible_value_vectors": [
+    "authorship",
+    "contribution",
+    "historical relevance",
+    "future auditability"
+  ]
+}

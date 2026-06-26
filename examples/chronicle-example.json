@@ -1,0 +1,17 @@
+{
+  "schema": "chronicle.collection.example.v0",
+  "id": "chronicle-example-001",
+  "title": "Verified Engineering History",
+  "receipts": [
+    "receipt-example-001",
+    "receipt-example-002",
+    "receipt-example-003"
+  ],
+  "composition_claim": "A Chronicle can represent a longer verified history than any single receipt.",
+  "possible_asset_forms": [
+    "portfolio",
+    "mission history",
+    "company history",
+    "research history"
+  ]
+}
