@@ -87,3 +87,10 @@ This repository is not about:
 - building a marketplace first
 
 Chronicle exists to define the conceptual substrate before any transport or monetization layer hardens into the wrong abstraction.
+
+## License
+
+- Code and documentation: Apache-2.0
+- Chronicle objects and user-generated histories: owned by their creators or lawful owners
+- Brand and trademark rights: reserved
+- See `docs/LICENSE_POLICY_V0.md`
