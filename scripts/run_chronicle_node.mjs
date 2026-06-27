@@ -307,6 +307,13 @@ function renderHtmlView(timeline) {
 </html>`
 }
 
+function findExistingEntryByProofOrEntryId(entryId, proofObjectId) {
+  return entryStore.find((entry) => {
+    if (entry.entry_id === entryId) return true
+    return Array.isArray(entry.proof_object_refs) && entry.proof_object_refs.some((ref) => ref.proof_object_id === proofObjectId)
+  })
+}
+
 function createEntryFromReceiptProof(proof) {
   const proofRef = {
     proof_object_id: proof.proof_object_id,
@@ -381,11 +388,26 @@ const server = http.createServer(async (request, response) => {
       }
 
       const entry = createEntryFromReceiptProof(proof)
+      const existing = findExistingEntryByProofOrEntryId(entry.entry_id, proof.proof_object_id)
+
+      if (existing) {
+        return json(response, 200, {
+          ok: true,
+          imported: false,
+          existing: true,
+          entry_id: existing.entry_id,
+          entry_count: entryStore.length,
+          store_path: STORE_PATH,
+        })
+      }
+
       entryStore.push(structuredClone(entry))
       saveStore()
 
       return json(response, 201, {
         ok: true,
+        imported: true,
+        existing: false,
         imported_proof_object_id: proof.proof_object_id,
         created_entry_id: entry.entry_id,
         entry_count: entryStore.length,

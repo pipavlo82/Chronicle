@@ -223,6 +223,8 @@ Expected result:
 - the imported proof appears in `/chronicle.md`
 - the imported proof appears in `/view`
 
+Re-importing the same ReceiptOS proof object is idempotent.
+
 ### 5. Generate timeline
 
 ```powershell
