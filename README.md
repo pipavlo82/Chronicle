@@ -212,6 +212,18 @@ Invoke-RestMethod http://localhost:8080/timeline
 Invoke-RestMethod http://localhost:8080/chronicle.md
 ```
 
+## View Chronicle in browser
+
+Start node:
+
+```powershell
+node scripts\run_chronicle_node.mjs
+```
+
+Open:
+
+`http://localhost:8080/view`
+
 The local node now uses file-backed local storage in `data/chronicle-local-store.json`.
 
 Delete `data/chronicle-local-store.json` to clear local state.

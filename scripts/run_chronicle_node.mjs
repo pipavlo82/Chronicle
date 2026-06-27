@@ -47,6 +47,20 @@ function text(response, statusCode, payload) {
   response.end(payload)
 }
 
+function html(response, statusCode, payload) {
+  response.writeHead(statusCode, { "content-type": "text/html; charset=utf-8" })
+  response.end(payload)
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;")
+}
+
 function readJsonBody(request) {
   return new Promise((resolve, reject) => {
     let body = ""
@@ -157,6 +171,132 @@ function renderMarkdownTimeline(timeline) {
   return lines.join("\n")
 }
 
+function renderHtmlView(timeline) {
+  const eventItems = timeline.events.length === 0
+    ? `<p class="empty">No Chronicle entries stored yet.</p>`
+    : timeline.events.map((event) => `
+      <article class="event">
+        <div class="event-header">
+          <div class="timestamp">${escapeHtml(event.timestamp ?? "unknown time")}</div>
+          <div class="label">${escapeHtml(event.display_label)}</div>
+        </div>
+        <ul>
+          <li><strong>relation_type:</strong> <code>${escapeHtml(event.relation_type)}</code></li>
+          <li><strong>entry_id:</strong> <code>${escapeHtml(event.entry_id)}</code></li>
+          <li><strong>proof refs:</strong> ${event.proof_object_refs.map((ref) => `<code>${escapeHtml(ref.proof_object_id)}</code>`).join(", ")}</li>
+        </ul>
+      </article>
+    `).join("\n")
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chronicle Local Node History</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f7f9;
+        --card: #ffffff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --border: #d1d5db;
+        --accent: #111827;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, Segoe UI, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 32px 20px 48px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 2rem;
+      }
+      p.lead {
+        margin: 0 0 20px;
+        color: var(--muted);
+      }
+      .links {
+        margin: 0 0 24px;
+      }
+      .links a {
+        color: var(--accent);
+        text-decoration: none;
+        margin-right: 16px;
+      }
+      .meta {
+        margin: 0 0 24px;
+        padding: 12px 16px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+      }
+      .event {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px 18px;
+        margin-bottom: 14px;
+      }
+      .event-header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        align-items: baseline;
+        margin-bottom: 10px;
+      }
+      .timestamp {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .label {
+        font-weight: 700;
+        font-size: 1.05rem;
+      }
+      ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+      code {
+        background: #eef2f7;
+        padding: 1px 5px;
+        border-radius: 6px;
+      }
+      .empty {
+        background: var(--card);
+        border: 1px dashed var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Chronicle Local Node History</h1>
+      <p class="lead">A simple local browser view over persisted Chronicle timeline events.</p>
+      <div class="links">
+        <a href="/chronicle.md">View Markdown history</a>
+        <a href="/timeline">View JSON timeline</a>
+        <a href="/entries">View stored entries</a>
+      </div>
+      <div class="meta">
+        <strong>Timeline:</strong> ${escapeHtml(timeline.title)}<br />
+        <strong>Event count:</strong> ${escapeHtml(timeline.events.length)}
+      </div>
+      ${eventItems}
+    </main>
+  </body>
+</html>`
+}
+
 loadStore()
 
 const server = http.createServer(async (request, response) => {
@@ -205,6 +345,10 @@ const server = http.createServer(async (request, response) => {
       return text(response, 200, renderMarkdownTimeline(buildTimeline()))
     }
 
+    if (request.method === "GET" && url.pathname === "/view") {
+      return html(response, 200, renderHtmlView(buildTimeline()))
+    }
+
     return json(response, 404, { ok: false, error: "Not found" })
   } catch (error) {
     return json(response, 500, {
@@ -217,5 +361,5 @@ const server = http.createServer(async (request, response) => {
 server.listen(PORT, () => {
   console.log(`Chronicle local node listening on http://localhost:${PORT}`)
   console.log(`Persistent store: ${STORE_PATH}`)
-  console.log("Endpoints: GET /health, POST /entries, GET /entries, GET /timeline, GET /chronicle.md")
+  console.log("Endpoints: GET /health, POST /entries, GET /entries, GET /timeline, GET /chronicle.md, GET /view")
 })
