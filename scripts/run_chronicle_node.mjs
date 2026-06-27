@@ -1,10 +1,41 @@
+import fs from "node:fs"
+import path from "node:path"
 import http from "node:http"
+import { fileURLToPath } from "node:url"
 import { createChronicleTimeline } from "../src/chronicle_mvp_timeline_generator_core.mjs"
 
 const PORT = 8080
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const DATA_DIR = path.resolve(__dirname, "../data")
+const STORE_PATH = path.join(DATA_DIR, "chronicle-local-store.json")
 
 /** @type {import('../src/chronicle_mvp_data_model.ts').ChronicleEntry[]} */
 const entryStore = []
+
+function ensureDataDir() {
+  fs.mkdirSync(DATA_DIR, { recursive: true })
+}
+
+function loadStore() {
+  ensureDataDir()
+
+  if (!fs.existsSync(STORE_PATH)) {
+    entryStore.splice(0, entryStore.length)
+    return
+  }
+
+  const raw = fs.readFileSync(STORE_PATH, "utf8")
+  const parsed = raw ? JSON.parse(raw) : { entries: [] }
+  const entries = Array.isArray(parsed.entries) ? parsed.entries : []
+
+  entryStore.splice(0, entryStore.length, ...entries)
+}
+
+function saveStore() {
+  ensureDataDir()
+  fs.writeFileSync(STORE_PATH, JSON.stringify({ entries: entryStore }, null, 2) + "\n", "utf8")
+}
 
 function json(response, statusCode, payload) {
   response.writeHead(statusCode, { "content-type": "application/json; charset=utf-8" })
@@ -126,6 +157,8 @@ function renderMarkdownTimeline(timeline) {
   return lines.join("\n")
 }
 
+loadStore()
+
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? `localhost:${PORT}`}`)
 
@@ -146,10 +179,12 @@ const server = http.createServer(async (request, response) => {
       }
 
       entryStore.push(structuredClone(entry))
+      saveStore()
       return json(response, 201, {
         ok: true,
         stored: entry.entry_id,
         entry_count: entryStore.length,
+        store_path: STORE_PATH,
       })
     }
 
@@ -158,6 +193,7 @@ const server = http.createServer(async (request, response) => {
         ok: true,
         count: entryStore.length,
         entries: entryStore,
+        store_path: STORE_PATH,
       })
     }
 
@@ -180,5 +216,6 @@ const server = http.createServer(async (request, response) => {
 
 server.listen(PORT, () => {
   console.log(`Chronicle local node listening on http://localhost:${PORT}`)
+  console.log(`Persistent store: ${STORE_PATH}`)
   console.log("Endpoints: GET /health, POST /entries, GET /entries, GET /timeline, GET /chronicle.md")
 })

@@ -1,0 +1,26 @@
+{
+  "entries": [
+    {
+      "relation_type": "created",
+      "project_refs": [
+        "project-chronicle-core"
+      ],
+      "proof_object_refs": [
+        {
+          "proof_system": "ReceiptOS",
+          "receipt_root": "0xproofroot-persist-001",
+          "anchor_ref": "receiptos://anchor/persist/001",
+          "proof_object_id": "proofobj-receiptos-persist-001",
+          "proof_ref": "receiptos://proof/persist/001",
+          "replay_ref": "receiptos://replay/persist/001"
+        }
+      ],
+      "created_at": "2026-06-27T14:30:00Z",
+      "metadata": {
+        "label": "Persisted Chronicle entry"
+      },
+      "entry_id": "entry-persist-001",
+      "chronology_position": "1"
+    }
+  ]
+}
