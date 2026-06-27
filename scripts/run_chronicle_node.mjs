@@ -284,6 +284,48 @@ function createPositionSummary(entries) {
   }
 }
 
+function createPositionEvolution(entries) {
+  const ordered = [...entries].sort(compareEntries)
+  const proofObjectIds = new Set()
+  const projectIds = new Set()
+  const dayIds = new Set()
+  const firstSeen = ordered[0]?.created_at ?? null
+  const latestSeen = ordered[ordered.length - 1]?.created_at ?? null
+
+  const points = ordered.map((entry, index) => {
+    for (const ref of Array.isArray(entry.proof_object_refs) ? entry.proof_object_refs : []) {
+      if (typeof ref.proof_object_id === "string") proofObjectIds.add(ref.proof_object_id)
+    }
+    for (const projectRef of Array.isArray(entry.project_refs) ? entry.project_refs : []) {
+      if (typeof projectRef === "string") projectIds.add(projectRef)
+    }
+    if (typeof entry.created_at === "string") {
+      dayIds.add(entry.created_at.slice(0, 10))
+    }
+
+    return {
+      step: index + 1,
+      entry_id: entry.entry_id,
+      label: typeof entry.metadata?.label === "string" ? entry.metadata.label : entry.entry_id,
+      created_at: entry.created_at,
+      cumulative_event_growth: index + 1,
+      cumulative_proof_growth: proofObjectIds.size,
+      cumulative_project_growth: projectIds.size,
+      first_seen: firstSeen,
+      latest_seen: latestSeen,
+      active_days: dayIds.size,
+    }
+  })
+
+  return {
+    point_count: points.length,
+    first_seen: firstSeen,
+    latest_seen: latestSeen,
+    active_days: dayIds.size,
+    points,
+  }
+}
+
 function isValidChronicleBundle(bundle) {
   return (
     bundle &&
@@ -363,6 +405,83 @@ function renderPositionLinks(positionIds) {
       </ul>
     </div>
   `
+}
+
+function renderEvolutionHtml(positionId, evolution) {
+  const rows = evolution.points.length === 0
+    ? `<tr><td colspan="7">No evolution points available yet.</td></tr>`
+    : evolution.points.map((point) => `
+      <tr>
+        <td>${escapeHtml(point.step)}</td>
+        <td><code>${escapeHtml(point.entry_id)}</code></td>
+        <td>${escapeHtml(point.label)}</td>
+        <td>${escapeHtml(point.created_at ?? "n/a")}</td>
+        <td>${escapeHtml(point.cumulative_event_growth)}</td>
+        <td>${escapeHtml(point.cumulative_proof_growth)}</td>
+        <td>${escapeHtml(point.cumulative_project_growth)}</td>
+      </tr>
+    `).join("\n")
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chronicle Position Evolution: ${escapeHtml(positionId)}</title>
+    <style>
+      body { margin: 0; font-family: Inter, Segoe UI, Arial, sans-serif; background: #f7f7f9; color: #1f2937; }
+      main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 48px; }
+      h1 { margin: 0 0 8px; font-size: 2rem; }
+      p { color: #6b7280; }
+      .links a { color: #111827; text-decoration: none; margin-right: 16px; }
+      .meta { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #d1d5db; border-radius: 12px; overflow: hidden; margin-top: 20px; }
+      .meta th, .meta td { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+      .meta th { width: 220px; background: #f9fafb; }
+      .meta tr:last-child th, .meta tr:last-child td { border-bottom: none; }
+      table.grid { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #d1d5db; border-radius: 12px; overflow: hidden; margin-top: 20px; }
+      table.grid th, table.grid td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
+      table.grid th { background: #f9fafb; }
+      table.grid tr:last-child td { border-bottom: none; }
+      code { background: #eef2f7; padding: 1px 5px; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Chronicle Position Evolution: ${escapeHtml(positionId)}</h1>
+      <p>Derived local evolution history for how this Chronicle Position accumulates verified work over time.</p>
+      <div class="links">
+        <a href="/position/${encodeURIComponent(positionId)}/view">View Position history</a>
+        <a href="/position/${encodeURIComponent(positionId)}/scorecard/view">View Position scorecard</a>
+        <a href="/position/${encodeURIComponent(positionId)}/export">Export Position bundle</a>
+        <a href="/view">Back to all history</a>
+      </div>
+      <table class="meta">
+        <tbody>
+          <tr><th><code>point_count</code></th><td>${escapeHtml(evolution.point_count)}</td></tr>
+          <tr><th><code>first_seen</code></th><td>${escapeHtml(evolution.first_seen ?? "n/a")}</td></tr>
+          <tr><th><code>latest_seen</code></th><td>${escapeHtml(evolution.latest_seen ?? "n/a")}</td></tr>
+          <tr><th><code>active_days</code></th><td>${escapeHtml(evolution.active_days)}</td></tr>
+        </tbody>
+      </table>
+      <table class="grid">
+        <thead>
+          <tr>
+            <th>Step</th>
+            <th>Entry</th>
+            <th>Label</th>
+            <th>Created At</th>
+            <th>Cumulative Events</th>
+            <th>Cumulative Proofs</th>
+            <th>Cumulative Projects</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </main>
+  </body>
+</html>`
 }
 
 function renderScorecardHtml(positionId, summary) {
@@ -542,6 +661,7 @@ function renderHtmlView(timeline, options = {}) {
         <a href="/entries">View stored entries</a>
         <a href="/export">Export bundle</a>
         ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/scorecard/view">View Position scorecard</a>` : ""}
+        ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/evolution/view">View Position evolution</a>` : ""}
         ${backLink}
       </div>
       <div class="meta">
@@ -977,6 +1097,18 @@ const server = http.createServer(async (request, response) => {
 
       if (parts.length === 4 && parts[2] === "scorecard" && parts[3] === "view") {
         return html(response, 200, renderScorecardHtml(positionId, summary))
+      }
+
+      if (parts.length === 3 && parts[2] === "evolution") {
+        return json(response, 200, {
+          ok: true,
+          position_id: positionId,
+          evolution: createPositionEvolution(positionEntries),
+        })
+      }
+
+      if (parts.length === 4 && parts[2] === "evolution" && parts[3] === "view") {
+        return html(response, 200, renderEvolutionHtml(positionId, createPositionEvolution(positionEntries)))
       }
 
       if (parts.length === 3 && parts[2] === "export") {
