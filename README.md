@@ -311,6 +311,14 @@ Position lineage examples:
 - `http://localhost:8080/position/position-chronicle-core-v0.1.0/lineage`
 - `http://localhost:8080/position/position-chronicle-core-v0.1.0/lineage/view`
 
+## View ReceiptOS receipts
+
+Examples:
+
+- `http://localhost:8080/receipts`
+- `http://localhost:8080/receipt/proofobj-receiptos-timeline-001`
+- `http://localhost:8080/receipt/proofobj-receiptos-timeline-001/view`
+
 ## Export Chronicle Bundle
 
 - `GET http://localhost:8080/export`
