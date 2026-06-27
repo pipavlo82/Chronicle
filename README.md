@@ -147,17 +147,68 @@ Expected output includes:
 
 ## Run Chronicle local node
 
-```bash
-node scripts/run_chronicle_node.mjs
+### 1. Start local node
+
+```powershell
+cd C:\Users\msi\dev\Chronicle
+node scripts\run_chronicle_node.mjs
 ```
 
-Then test:
+### 2. Health check
 
-- `GET http://localhost:8080/health`
-- `POST http://localhost:8080/entries`
-- `GET http://localhost:8080/entries`
-- `GET http://localhost:8080/timeline`
-- `GET http://localhost:8080/chronicle.md`
+```powershell
+Invoke-RestMethod http://localhost:8080/health
+```
+
+### 3. POST a manual Chronicle entry
+
+```powershell
+$entry = @{
+  entry_id = "entry-manual-001"
+  proof_object_refs = @(
+    @{
+      proof_object_id = "proofobj-receiptos-manual-001"
+      proof_system = "ReceiptOS"
+      receipt_root = "0xproofroot-manual-001"
+      proof_ref = "receiptos://proof/manual/001"
+      replay_ref = "receiptos://replay/manual/001"
+      anchor_ref = "receiptos://anchor/manual/001"
+    }
+  )
+  project_refs = @("project-chronicle-core")
+  relation_type = "created"
+  chronology_position = "1"
+  created_at = "2026-06-27T14:00:00Z"
+  metadata = @{
+    label = "Manual Chronicle entry"
+  }
+} | ConvertTo-Json -Depth 10
+
+Invoke-RestMethod -Method Post `
+  -Uri http://localhost:8080/entries `
+  -ContentType 'application/json' `
+  -Body $entry
+```
+
+### 4. Check stored entries
+
+```powershell
+Invoke-RestMethod http://localhost:8080/entries
+```
+
+### 5. Generate timeline
+
+```powershell
+Invoke-RestMethod http://localhost:8080/timeline
+```
+
+### 6. Generate Markdown history
+
+```powershell
+Invoke-RestMethod http://localhost:8080/chronicle.md
+```
+
+The local node currently uses in-memory storage. Restarting the node clears stored entries.
 
 ## MVP flow
 
