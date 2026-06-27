@@ -7,7 +7,8 @@
     "replay_ref": "receiptos://replay/timeline/001",
     "anchor_ref": "receiptos://anchor/timeline/001",
     "metadata": {
-      "label": "ReceiptOS project timeline capsule"
+      "label": "ReceiptOS project timeline capsule",
+      "release": "v0.1.0"
     }
   },
   "project_refs": [

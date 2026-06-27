@@ -272,6 +272,12 @@ Example:
 
 `http://localhost:8080/project/project-chronicle-core/view`
 
+## View release history
+
+Example:
+
+`http://localhost:8080/release/v0.1.0/view`
+
 ## Export Chronicle Bundle
 
 - `GET http://localhost:8080/export`
