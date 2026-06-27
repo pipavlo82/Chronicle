@@ -2,6 +2,30 @@
 
 A research project exploring receipts as a new digital asset class.
 
+## Chronicle MVP Explainer
+
+**Chronicle is a continuity layer for proof-bearing work.**
+
+**ReceiptOS proves what happened.**  
+**Chronicle explains how proven events become history.**
+
+![Chronicle MVP flow](docs/images/chronicle-mvp-flow.png)
+
+MVP flow:
+
+ReceiptOS Proof Object  
+→ Chronicle Entry  
+→ Chronicle Graph  
+→ Chronicle Timeline  
+→ Human-readable Output
+
+Chronicle does not replace ReceiptOS verification.
+Chronicle does not modify proof objects.
+Chronicle does not define ownership, identity, NFT, marketplace, or reputation logic in MVP.
+
+A longer MVP explanation is in `docs/chronicle_mvp_explainer.md`.
+
+
 Chronicle starts from a simple premise:
 
 - the AI is temporary
@@ -66,7 +90,9 @@ Chronicle explores whether that verified history can become a durable asset clas
 - `docs/NON_GOALS.md`
 - `docs/chronicle_mvp_v0.md`
 - `docs/chronicle_first_build_plan_v0.md`
+- `docs/chronicle_mvp_explainer.md`
 - `docs/chronicle_mvp_e2e_demo.md`
+- `docs/images/chronicle-mvp-flow.png`
 - `examples/chronicle-example.json`
 - `examples/receipt-example.json`
 - `examples/chronicle-mvp-example.json`
