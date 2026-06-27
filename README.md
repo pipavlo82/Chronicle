@@ -306,6 +306,11 @@ Position snapshot example:
 
 - `http://localhost:8080/position/position-chronicle-core-v0.1.0/snapshot`
 
+Position artifact examples:
+
+- `http://localhost:8080/position/position-chronicle-core-v0.1.0/artifact`
+- `http://localhost:8080/position/position-chronicle-core-v0.1.0/artifact/view`
+
 Position lineage examples:
 
 - `http://localhost:8080/position/position-chronicle-core-v0.1.0/lineage`
