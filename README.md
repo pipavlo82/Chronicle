@@ -92,6 +92,7 @@ Chronicle explores whether that verified history can become a durable asset clas
 - `docs/chronicle_first_build_plan_v0.md`
 - `docs/chronicle_mvp_explainer.md`
 - `docs/chronicle_position_v0.md`
+- `docs/chronicle_asset_model_v0.md`
 - `docs/chronicle_mvp_e2e_demo.md`
 - `docs/images/chronicle-mvp-flow.png`
 - `examples/chronicle-example.json`
