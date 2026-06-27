@@ -1,0 +1,16 @@
+{
+  "proof_object_id": "proofobj-receiptos-import-001",
+  "proof_system": "ReceiptOS",
+  "receipt_root": "0xproofroot-import-001",
+  "proof_ref": "receiptos://proof/import/001",
+  "replay_ref": "receiptos://replay/import/001",
+  "anchor_ref": "receiptos://anchor/import/001",
+  "created_at": "2026-06-27T15:00:00Z",
+  "project_refs": [
+    "project-chronicle-core"
+  ],
+  "relation_type": "imported",
+  "metadata": {
+    "label": "Imported ReceiptOS proof object"
+  }
+}
