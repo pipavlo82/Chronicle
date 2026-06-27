@@ -23,7 +23,8 @@
       "chronology_position": "1",
       "metadata": {
         "stage": "implementation",
-        "profile_id": "agent-chronicle-builder"
+        "profile_id": "agent-chronicle-builder",
+        "position_id": "position-chronicle-core-v0.1.0"
       }
     },
     {
@@ -34,7 +35,8 @@
       "chronology_position": "2",
       "metadata": {
         "stage": "verification",
-        "profile_id": "agent-chronicle-builder"
+        "profile_id": "agent-chronicle-builder",
+        "position_id": "position-chronicle-core-v0.1.0"
       }
     },
     {
@@ -45,7 +47,8 @@
       "chronology_position": "3",
       "metadata": {
         "stage": "release",
-        "profile_id": "agent-chronicle-builder"
+        "profile_id": "agent-chronicle-builder",
+        "position_id": "position-chronicle-core-v0.1.0"
       }
     }
   ]
