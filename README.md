@@ -272,6 +272,11 @@ Example:
 
 `http://localhost:8080/project/project-chronicle-core/view`
 
+## Export Chronicle Bundle
+
+- `GET http://localhost:8080/export`
+- `GET http://localhost:8080/project/project-chronicle-core/export`
+
 The local node now uses file-backed local storage in `data/chronicle-local-store.json`.
 
 Delete `data/chronicle-local-store.json` to clear local state.

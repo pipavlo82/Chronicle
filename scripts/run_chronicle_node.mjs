@@ -187,6 +187,16 @@ function buildTimeline(entries = entryStore, options = {}) {
   })
 }
 
+function createChronicleBundle(scope, entries) {
+  return {
+    bundle_type: "chronicle.bundle.v0",
+    exported_at: new Date().toISOString(),
+    scope,
+    entry_count: entries.length,
+    entries,
+  }
+}
+
 function renderMarkdownTimeline(timeline) {
   const lines = ["# Chronicle Local Node History", ""]
 
@@ -213,7 +223,7 @@ function renderProjectLinks(projectRefs) {
     <div class="projects">
       <strong>Projects</strong>
       <ul>
-        ${projectRefs.map((projectRef) => `<li><a href="/project/${encodeURIComponent(projectRef)}/view">${escapeHtml(projectRef)}</a></li>`).join("\n")}
+        ${projectRefs.map((projectRef) => `<li><a href="/project/${encodeURIComponent(projectRef)}/view">${escapeHtml(projectRef)}</a> — <a href="/project/${encodeURIComponent(projectRef)}/export">export bundle</a></li>`).join("\n")}
       </ul>
     </div>
   `
@@ -344,6 +354,7 @@ function renderHtmlView(timeline, options = {}) {
         <a href="/chronicle.md">View Markdown history</a>
         <a href="/timeline">View JSON timeline</a>
         <a href="/entries">View stored entries</a>
+        <a href="/export">Export bundle</a>
         ${backLink}
       </div>
       <div class="meta">
@@ -558,6 +569,10 @@ const server = http.createServer(async (request, response) => {
       })
     }
 
+    if (request.method === "GET" && url.pathname === "/export") {
+      return json(response, 200, createChronicleBundle("all", entryStore))
+    }
+
     if (request.method === "GET" && url.pathname.startsWith("/project/")) {
       const parts = url.pathname.split("/").filter(Boolean)
       const projectRef = parts[1] ? decodeURIComponent(parts[1]) : ""
@@ -583,6 +598,10 @@ const server = http.createServer(async (request, response) => {
           lead: `A project-filtered browser view for ${projectRef}.`,
           backLink: "/view",
         }))
+      }
+
+      if (parts.length === 3 && parts[2] === "export") {
+        return json(response, 200, createChronicleBundle(projectRef, projectEntries))
       }
     }
 
@@ -610,5 +629,5 @@ const server = http.createServer(async (request, response) => {
 server.listen(PORT, () => {
   console.log(`Chronicle local node listening on http://localhost:${PORT}`)
   console.log(`Persistent store: ${STORE_PATH}`)
-  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, GET /entries, GET /projects, GET /project/:project_ref, GET /timeline, GET /chronicle.md, GET /view")
+  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, GET /entries, GET /projects, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /timeline, GET /chronicle.md, GET /view")
 })
