@@ -185,12 +185,28 @@ function getProfileId(entry) {
     : "unprofiled"
 }
 
+function getPositionId(entry) {
+  if (typeof entry?.metadata?.position_id === "string" && entry.metadata.position_id.trim()) {
+    return entry.metadata.position_id
+  }
+
+  if (Array.isArray(entry?.project_refs) && typeof entry.project_refs[0] === "string" && entry.project_refs[0].trim()) {
+    return entry.project_refs[0]
+  }
+
+  return "unpositioned"
+}
+
 function getReleaseIds(entries = entryStore) {
   return [...new Set(entries.map((entry) => getReleaseId(entry)))].sort((a, b) => a.localeCompare(b))
 }
 
 function getProfileIds(entries = entryStore) {
   return [...new Set(entries.map((entry) => getProfileId(entry)))].sort((a, b) => a.localeCompare(b))
+}
+
+function getPositionIds(entries = entryStore) {
+  return [...new Set(entries.map((entry) => getPositionId(entry)))].sort((a, b) => a.localeCompare(b))
 }
 
 function getEntriesForProject(projectRef) {
@@ -203,6 +219,10 @@ function getEntriesForRelease(releaseId) {
 
 function getEntriesForProfile(profileId) {
   return entryStore.filter((entry) => getProfileId(entry) === profileId)
+}
+
+function getEntriesForPosition(positionId) {
+  return entryStore.filter((entry) => getPositionId(entry) === positionId)
 }
 
 function buildTimeline(entries = entryStore, options = {}) {
@@ -222,6 +242,40 @@ function createChronicleBundle(scope, entries) {
     scope,
     entry_count: entries.length,
     entries,
+  }
+}
+
+function createPositionSummary(entries) {
+  const proofObjectIds = new Set()
+  const projectIds = new Set()
+  const releaseIds = new Set()
+  const profileIds = new Set()
+  const timestamps = []
+
+  for (const entry of entries) {
+    for (const ref of Array.isArray(entry.proof_object_refs) ? entry.proof_object_refs : []) {
+      if (typeof ref.proof_object_id === "string") proofObjectIds.add(ref.proof_object_id)
+    }
+    for (const projectRef of Array.isArray(entry.project_refs) ? entry.project_refs : []) {
+      if (typeof projectRef === "string") projectIds.add(projectRef)
+    }
+    const releaseId = getReleaseId(entry)
+    if (releaseId) releaseIds.add(releaseId)
+    const profileId = getProfileId(entry)
+    if (profileId) profileIds.add(profileId)
+    if (typeof entry.created_at === "string") timestamps.push(entry.created_at)
+  }
+
+  timestamps.sort((a, b) => a.localeCompare(b))
+
+  return {
+    event_count: entries.length,
+    proof_object_count: proofObjectIds.size,
+    project_count: projectIds.size,
+    release_count: releaseIds.size,
+    profile_count: profileIds.size,
+    first_event_at: timestamps[0] ?? null,
+    latest_event_at: timestamps[timestamps.length - 1] ?? null,
   }
 }
 
@@ -288,6 +342,19 @@ function renderProfileLinks(profileIds) {
       <strong>Profiles</strong>
       <ul>
         ${profileIds.map((profileId) => `<li><a href="/profile/${encodeURIComponent(profileId)}/view">${escapeHtml(profileId)}</a> — <a href="/profile/${encodeURIComponent(profileId)}/export">export bundle</a></li>`).join("\n")}
+      </ul>
+    </div>
+  `
+}
+
+function renderPositionLinks(positionIds) {
+  if (positionIds.length === 0) return "<p class=\"empty\">No position ids found yet.</p>"
+
+  return `
+    <div class="projects">
+      <strong>Positions</strong>
+      <ul>
+        ${positionIds.map((positionId) => `<li><a href="/position/${encodeURIComponent(positionId)}/view">${escapeHtml(positionId)}</a> — <a href="/position/${encodeURIComponent(positionId)}/export">export bundle</a></li>`).join("\n")}
       </ul>
     </div>
   `
@@ -428,6 +495,7 @@ function renderHtmlView(timeline, options = {}) {
       ${renderProjectLinks(getProjectRefs())}
       ${renderReleaseLinks(getReleaseIds())}
       ${renderProfileLinks(getProfileIds())}
+      ${renderPositionLinks(getPositionIds())}
       ${eventItems}
     </main>
   </body>
@@ -475,6 +543,7 @@ function createEntryFromReceiptProof(proof) {
           : `Imported proof ${proof.proof_object_id}`,
       release: typeof proof.metadata?.release === "string" ? proof.metadata.release : undefined,
       profile_id: typeof proof.metadata?.profile_id === "string" ? proof.metadata.profile_id : undefined,
+      position_id: typeof proof.metadata?.position_id === "string" ? proof.metadata.position_id : undefined,
       imported_from: "ReceiptOS",
       source_proof_object_id: proof.proof_object_id,
       source_proof_ref: proof.proof_ref,
@@ -498,6 +567,7 @@ function createEntriesFromReceiptTimelineCapsule(capsule) {
       label: event.label,
       release: typeof event.metadata?.release === "string" ? event.metadata.release : defaultRelease,
       profile_id: typeof event.metadata?.profile_id === "string" ? event.metadata.profile_id : undefined,
+      position_id: typeof event.metadata?.position_id === "string" ? event.metadata.position_id : undefined,
       imported_from: "ReceiptOS.timeline",
       source_event_id: event.event_id,
       source_proof_object_id: capsule.proof_object_ref.proof_object_id,
@@ -702,6 +772,15 @@ const server = http.createServer(async (request, response) => {
       })
     }
 
+    if (request.method === "GET" && url.pathname === "/positions") {
+      const positions = getPositionIds()
+      return json(response, 200, {
+        ok: true,
+        count: positions.length,
+        positions,
+      })
+    }
+
     if (request.method === "GET" && url.pathname === "/export") {
       return json(response, 200, createChronicleBundle("all", entryStore))
     }
@@ -802,6 +881,43 @@ const server = http.createServer(async (request, response) => {
       }
     }
 
+    if (request.method === "GET" && url.pathname.startsWith("/position/")) {
+      const parts = url.pathname.split("/").filter(Boolean)
+      const positionId = parts[1] ? decodeURIComponent(parts[1]) : ""
+      const positionEntries = getEntriesForPosition(positionId)
+      const positionTimeline = buildTimeline(positionEntries, {
+        timeline_id: `chronicle-position-${positionId}-timeline`,
+        title: `Chronicle Position Timeline: ${positionId}`,
+      })
+      const summary = createPositionSummary(positionEntries)
+
+      if (parts.length === 2) {
+        return json(response, 200, {
+          ok: true,
+          position_id: positionId,
+          summary,
+          count: positionEntries.length,
+          entries: positionEntries,
+          timeline: positionTimeline,
+        })
+      }
+
+      if (parts.length === 3 && parts[2] === "view") {
+        return html(response, 200, renderHtmlView(positionTimeline, {
+          heading: `Chronicle Position History: ${positionId}`,
+          lead: `A position-filtered browser view for ${positionId}. Event count: ${summary.event_count}. Proof objects: ${summary.proof_object_count}. Projects: ${summary.project_count}. Releases: ${summary.release_count}. Profiles: ${summary.profile_count}. First event: ${summary.first_event_at ?? "n/a"}. Latest event: ${summary.latest_event_at ?? "n/a"}.`,
+          backLink: "/view",
+        }))
+      }
+
+      if (parts.length === 3 && parts[2] === "export") {
+        return json(response, 200, {
+          ...createChronicleBundle(positionId, positionEntries),
+          position_summary: summary,
+        })
+      }
+    }
+
     if (request.method === "GET" && url.pathname === "/timeline") {
       return json(response, 200, buildTimeline())
     }
@@ -826,5 +942,5 @@ const server = http.createServer(async (request, response) => {
 server.listen(PORT, () => {
   console.log(`Chronicle local node listening on http://localhost:${PORT}`)
   console.log(`Persistent store: ${STORE_PATH}`)
-  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /releases, GET /profiles, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /release/:release_id, GET /release/:release_id/export, GET /profile/:profile_id, GET /profile/:profile_id/export, GET /timeline, GET /chronicle.md, GET /view")
+  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /releases, GET /profiles, GET /positions, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /release/:release_id, GET /release/:release_id/export, GET /profile/:profile_id, GET /profile/:profile_id/export, GET /position/:position_id, GET /position/:position_id/export, GET /timeline, GET /chronicle.md, GET /view")
 })

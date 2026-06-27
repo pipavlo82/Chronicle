@@ -285,6 +285,12 @@ Example:
 
 `http://localhost:8080/profile/agent-chronicle-builder/view`
 
+## View Chronicle Positions
+
+Example:
+
+`http://localhost:8080/position/position-chronicle-core-v0.1.0/view`
+
 ## Export Chronicle Bundle
 
 - `GET http://localhost:8080/export`
