@@ -209,6 +209,17 @@ function getPositionIds(entries = entryStore) {
   return [...new Set(entries.map((entry) => getPositionId(entry)))].sort((a, b) => a.localeCompare(b))
 }
 
+function getReceiptId(entry) {
+  const proofRef = Array.isArray(entry?.proof_object_refs) ? entry.proof_object_refs[0] : undefined
+  return typeof proofRef?.proof_object_id === "string" && proofRef.proof_object_id.trim()
+    ? proofRef.proof_object_id
+    : "unknown-receipt"
+}
+
+function getReceiptIds(entries = entryStore) {
+  return [...new Set(entries.map((entry) => getReceiptId(entry)))].sort((a, b) => a.localeCompare(b))
+}
+
 function getEntriesForProject(projectRef) {
   return entryStore.filter((entry) => Array.isArray(entry.project_refs) && entry.project_refs.includes(projectRef))
 }
@@ -223,6 +234,10 @@ function getEntriesForProfile(profileId) {
 
 function getEntriesForPosition(positionId) {
   return entryStore.filter((entry) => getPositionId(entry) === positionId)
+}
+
+function getEntriesForReceipt(receiptId) {
+  return entryStore.filter((entry) => getReceiptId(entry) === receiptId)
 }
 
 function buildTimeline(entries = entryStore, options = {}) {
@@ -242,6 +257,23 @@ function createChronicleBundle(scope, entries) {
     scope,
     entry_count: entries.length,
     entries,
+  }
+}
+
+function createReceiptView(receiptId, entries) {
+  const receiptEntries = [...entries].sort(compareEntries)
+  const proofRef = receiptEntries[0]?.proof_object_refs?.[0]
+  const linkedPositions = [...new Set(receiptEntries.map((entry) => getPositionId(entry)))].sort((a, b) => a.localeCompare(b))
+  const linkedEntries = receiptEntries.map((entry) => entry.entry_id)
+
+  return {
+    receipt_id: receiptId,
+    receipt_root: proofRef?.receipt_root ?? null,
+    receipt_type: typeof proofRef?.metadata?.kind === "string" ? proofRef.metadata.kind : "ReceiptOS Proof",
+    receipt_timestamp: receiptEntries[0]?.created_at ?? null,
+    proof_refs: receiptEntries.flatMap((entry) => Array.isArray(entry.proof_object_refs) ? entry.proof_object_refs : []).filter((ref, index, array) => array.findIndex((other) => other.proof_object_id === ref.proof_object_id) === index),
+    linked_entries: linkedEntries,
+    linked_positions: linkedPositions,
   }
 }
 
@@ -461,6 +493,69 @@ function renderPositionLinks(positionIds) {
       </ul>
     </div>
   `
+}
+
+function renderReceiptLinks(receiptIds) {
+  if (receiptIds.length === 0) return "<p class=\"empty\">No receipts found yet.</p>"
+
+  return `
+    <div class="projects">
+      <strong>Receipts</strong>
+      <ul>
+        ${receiptIds.map((receiptId) => `<li><a href="/receipt/${encodeURIComponent(receiptId)}/view">${escapeHtml(receiptId)}</a></li>`).join("\n")}
+      </ul>
+    </div>
+  `
+}
+
+function renderReceiptHtml(receipt) {
+  const renderList = (items) => items.length === 0 ? "<em>none</em>" : items.map((item) => `<code>${escapeHtml(item)}</code>`).join(", ")
+  const proofRefs = receipt.proof_refs.length === 0
+    ? "<em>none</em>"
+    : receipt.proof_refs.map((ref) => `<div><code>${escapeHtml(ref.proof_object_id)}</code> — ${escapeHtml(ref.proof_ref ?? "no-proof-ref")}</div>`).join("")
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ReceiptOS Receipt View: ${escapeHtml(receipt.receipt_id)}</title>
+    <style>
+      body { margin: 0; font-family: Inter, Segoe UI, Arial, sans-serif; background: #f7f7f9; color: #1f2937; }
+      main { max-width: 1000px; margin: 0 auto; padding: 32px 20px 48px; }
+      h1 { margin: 0 0 8px; font-size: 2rem; }
+      p { color: #6b7280; }
+      .links a { color: #111827; text-decoration: none; margin-right: 16px; }
+      table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #d1d5db; border-radius: 12px; overflow: hidden; margin-top: 20px; }
+      th, td { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
+      th { width: 260px; background: #f9fafb; }
+      tr:last-child th, tr:last-child td { border-bottom: none; }
+      code { background: #eef2f7; padding: 1px 5px; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>ReceiptOS Receipt View: ${escapeHtml(receipt.receipt_id)}</h1>
+      <p>ReceiptOS proves what happened. Chronicle explains how this proven event became linked history.</p>
+      <div class="links">
+        <a href="/entries">View stored entries</a>
+        <a href="/positions">View positions</a>
+        <a href="/view">Back to all history</a>
+      </div>
+      <table>
+        <tbody>
+          <tr><th><code>receipt_id</code></th><td>${escapeHtml(receipt.receipt_id)}</td></tr>
+          <tr><th><code>receipt_root</code></th><td>${escapeHtml(receipt.receipt_root ?? "n/a")}</td></tr>
+          <tr><th><code>receipt_type</code></th><td>${escapeHtml(receipt.receipt_type ?? "n/a")}</td></tr>
+          <tr><th><code>receipt_timestamp</code></th><td>${escapeHtml(receipt.receipt_timestamp ?? "n/a")}</td></tr>
+          <tr><th><code>proof_refs</code></th><td>${proofRefs}</td></tr>
+          <tr><th><code>linked_entries</code></th><td>${renderList(receipt.linked_entries)}</td></tr>
+          <tr><th><code>linked_positions</code></th><td>${renderList(receipt.linked_positions)}</td></tr>
+        </tbody>
+      </table>
+    </main>
+  </body>
+</html>`
 }
 
 function renderLineageHtml(positionId, lineage) {
@@ -784,6 +879,7 @@ function renderHtmlView(timeline, options = {}) {
       ${renderReleaseLinks(getReleaseIds())}
       ${renderProfileLinks(getProfileIds())}
       ${renderPositionLinks(getPositionIds())}
+      ${renderReceiptLinks(getReceiptIds())}
       ${eventItems}
     </main>
   </body>
@@ -1075,6 +1171,15 @@ const server = http.createServer(async (request, response) => {
       })
     }
 
+    if (request.method === "GET" && url.pathname === "/receipts") {
+      const receipts = getReceiptIds()
+      return json(response, 200, {
+        ok: true,
+        count: receipts.length,
+        receipts,
+      })
+    }
+
     if (request.method === "GET" && url.pathname === "/export") {
       return json(response, 200, createChronicleBundle("all", entryStore))
     }
@@ -1172,6 +1277,24 @@ const server = http.createServer(async (request, response) => {
 
       if (parts.length === 3 && parts[2] === "export") {
         return json(response, 200, createChronicleBundle(profileId, profileEntries))
+      }
+    }
+
+    if (request.method === "GET" && url.pathname.startsWith("/receipt/")) {
+      const parts = url.pathname.split("/").filter(Boolean)
+      const receiptId = parts[1] ? decodeURIComponent(parts[1]) : ""
+      const receiptEntries = getEntriesForReceipt(receiptId)
+      const receipt = createReceiptView(receiptId, receiptEntries)
+
+      if (parts.length === 2) {
+        return json(response, 200, {
+          ok: true,
+          ...receipt,
+        })
+      }
+
+      if (parts.length === 3 && parts[2] === "view") {
+        return html(response, 200, renderReceiptHtml(receipt))
       }
     }
 
@@ -1277,5 +1400,5 @@ const server = http.createServer(async (request, response) => {
 server.listen(PORT, () => {
   console.log(`Chronicle local node listening on http://localhost:${PORT}`)
   console.log(`Persistent store: ${STORE_PATH}`)
-  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /releases, GET /profiles, GET /positions, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /release/:release_id, GET /release/:release_id/export, GET /profile/:profile_id, GET /profile/:profile_id/export, GET /position/:position_id, GET /position/:position_id/scorecard, GET /position/:position_id/evolution, GET /position/:position_id/snapshot, GET /position/:position_id/lineage, GET /position/:position_id/export, GET /timeline, GET /chronicle.md, GET /view")
+  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /releases, GET /profiles, GET /positions, GET /receipts, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /release/:release_id, GET /release/:release_id/export, GET /profile/:profile_id, GET /profile/:profile_id/export, GET /receipt/:receipt_id, GET /position/:position_id, GET /position/:position_id/scorecard, GET /position/:position_id/evolution, GET /position/:position_id/snapshot, GET /position/:position_id/lineage, GET /position/:position_id/export, GET /timeline, GET /chronicle.md, GET /view")
 })
