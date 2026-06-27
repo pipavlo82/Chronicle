@@ -1,0 +1,48 @@
+{
+  "proof_object_ref": {
+    "proof_object_id": "proofobj-receiptos-timeline-001",
+    "proof_system": "ReceiptOS",
+    "receipt_root": "0xproofroot-timeline-001",
+    "proof_ref": "receiptos://proof/timeline/001",
+    "replay_ref": "receiptos://replay/timeline/001",
+    "anchor_ref": "receiptos://anchor/timeline/001",
+    "metadata": {
+      "label": "ReceiptOS project timeline capsule"
+    }
+  },
+  "project_refs": [
+    "project-chronicle-core"
+  ],
+  "events": [
+    {
+      "event_id": "implementation-completed-001",
+      "label": "Implementation completed",
+      "created_at": "2026-06-27T15:00:00Z",
+      "relation_type": "created",
+      "chronology_position": "1",
+      "metadata": {
+        "stage": "implementation"
+      }
+    },
+    {
+      "event_id": "verification-completed-001",
+      "label": "Verification completed",
+      "created_at": "2026-06-27T15:30:00Z",
+      "relation_type": "verified",
+      "chronology_position": "2",
+      "metadata": {
+        "stage": "verification"
+      }
+    },
+    {
+      "event_id": "release-created-001",
+      "label": "Release created",
+      "created_at": "2026-06-27T16:00:00Z",
+      "relation_type": "release",
+      "chronology_position": "3",
+      "metadata": {
+        "stage": "release"
+      }
+    }
+  ]
+}

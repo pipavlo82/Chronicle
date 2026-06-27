@@ -116,6 +116,23 @@ function isValidReceiptProofObject(proof) {
   )
 }
 
+function isValidReceiptTimelineCapsule(capsule) {
+  return (
+    capsule &&
+    typeof capsule === "object" &&
+    isValidReceiptProofObject(capsule.proof_object_ref) &&
+    Array.isArray(capsule.events) &&
+    capsule.events.every((event) =>
+      event &&
+      typeof event === "object" &&
+      typeof event.event_id === "string" &&
+      typeof event.label === "string" &&
+      typeof event.created_at === "string" &&
+      typeof event.relation_type === "string",
+    )
+  )
+}
+
 function compareEntries(a, b) {
   const aTs = a.created_at ?? ""
   const bTs = b.created_at ?? ""
@@ -347,8 +364,12 @@ function findExistingEntryByProofOrEntryId(entryId, proofObjectId) {
   })
 }
 
-function createEntryFromReceiptProof(proof) {
-  const proofRef = {
+function findExistingEntryByEntryId(entryId) {
+  return entryStore.find((entry) => entry.entry_id === entryId)
+}
+
+function createProofObjectRef(proof) {
+  return {
     proof_object_id: proof.proof_object_id,
     proof_system: proof.proof_system,
     receipt_root: proof.receipt_root,
@@ -357,6 +378,10 @@ function createEntryFromReceiptProof(proof) {
     anchor_ref: proof.anchor_ref,
     metadata: proof.metadata && typeof proof.metadata === "object" ? { ...proof.metadata } : undefined,
   }
+}
+
+function createEntryFromReceiptProof(proof) {
+  const proofRef = createProofObjectRef(proof)
 
   return {
     entry_id: `entry-${proof.proof_object_id}`,
@@ -376,6 +401,27 @@ function createEntryFromReceiptProof(proof) {
       source_proof_ref: proof.proof_ref,
     },
   }
+}
+
+function createEntriesFromReceiptTimelineCapsule(capsule) {
+  const proofRef = createProofObjectRef(capsule.proof_object_ref)
+  const projectRefs = Array.isArray(capsule.project_refs) ? [...capsule.project_refs] : undefined
+
+  return capsule.events.map((event) => ({
+    entry_id: `entry-${event.event_id}`,
+    proof_object_refs: [proofRef],
+    project_refs: projectRefs,
+    relation_type: event.relation_type,
+    chronology_position: typeof event.chronology_position === "string" ? event.chronology_position : undefined,
+    created_at: event.created_at,
+    metadata: {
+      label: event.label,
+      imported_from: "ReceiptOS.timeline",
+      source_event_id: event.event_id,
+      source_proof_object_id: capsule.proof_object_ref.proof_object_id,
+      event_metadata: event.metadata && typeof event.metadata === "object" ? { ...event.metadata } : undefined,
+    },
+  }))
 }
 
 loadStore()
@@ -444,6 +490,52 @@ const server = http.createServer(async (request, response) => {
         imported_proof_object_id: proof.proof_object_id,
         created_entry_id: entry.entry_id,
         entry_count: entryStore.length,
+        store_path: STORE_PATH,
+      })
+    }
+
+    if (request.method === "POST" && url.pathname === "/import/receipt-timeline") {
+      const capsule = await readJsonBody(request)
+
+      if (!isValidReceiptTimelineCapsule(capsule)) {
+        return json(response, 400, {
+          ok: false,
+          error: "Invalid ReceiptOS timeline capsule payload",
+          required: ["proof_object_ref", "project_refs", "events[]"],
+        })
+      }
+
+      const candidateEntries = createEntriesFromReceiptTimelineCapsule(capsule)
+      let importedCount = 0
+      let existingCount = 0
+      const importedEntryIds = []
+      const existingEntryIds = []
+
+      for (const entry of candidateEntries) {
+        const existing = findExistingEntryByEntryId(entry.entry_id)
+        if (existing) {
+          existingCount += 1
+          existingEntryIds.push(existing.entry_id)
+          continue
+        }
+
+        entryStore.push(structuredClone(entry))
+        importedCount += 1
+        importedEntryIds.push(entry.entry_id)
+      }
+
+      if (importedCount > 0) saveStore()
+
+      return json(response, importedCount > 0 ? 201 : 200, {
+        ok: true,
+        imported: importedCount > 0,
+        imported_count: importedCount,
+        existing_count: existingCount,
+        imported_entry_ids: importedEntryIds,
+        existing_entry_ids: existingEntryIds,
+        entry_count: entryStore.length,
+        project_refs: capsule.project_refs,
+        proof_object_id: capsule.proof_object_ref.proof_object_id,
         store_path: STORE_PATH,
       })
     }
@@ -518,5 +610,5 @@ const server = http.createServer(async (request, response) => {
 server.listen(PORT, () => {
   console.log(`Chronicle local node listening on http://localhost:${PORT}`)
   console.log(`Persistent store: ${STORE_PATH}`)
-  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, GET /entries, GET /timeline, GET /chronicle.md, GET /view")
+  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, GET /entries, GET /projects, GET /project/:project_ref, GET /timeline, GET /chronicle.md, GET /view")
 })
