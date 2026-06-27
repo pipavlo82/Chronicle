@@ -185,6 +185,10 @@ This repository is not about:
 
 Chronicle exists to define the conceptual substrate before any transport or monetization layer hardens into the wrong abstraction.
 
+## CI
+
+Chronicle runs the MVP demo in GitHub Actions on pull requests and pushes to main.
+
 ## License
 
 - Code and documentation: Apache-2.0

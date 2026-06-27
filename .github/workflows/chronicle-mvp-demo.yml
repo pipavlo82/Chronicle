@@ -1,0 +1,47 @@
+name: Chronicle MVP Demo
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  chronicle-mvp-demo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          elif [ -f package.json ]; then
+            npm install
+          else
+            echo "No package.json found; skipping dependency install"
+          fi
+
+      - name: Run tests if available
+        shell: bash
+        run: |
+          if [ -f package.json ]; then
+            if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.test ? 0 : 1)"; then
+              npm test
+            else
+              echo "No test script found; skipping tests"
+            fi
+          else
+            echo "No package.json found; skipping tests"
+          fi
+
+      - name: Run Chronicle MVP demo
+        run: node scripts/run_chronicle_mvp_demo.mjs
