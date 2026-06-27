@@ -152,13 +152,21 @@ function deriveChronicleEdges(entries) {
   return edges
 }
 
-function buildTimeline() {
-  const edges = deriveChronicleEdges(entryStore)
+function getProjectRefs(entries = entryStore) {
+  return [...new Set(entries.flatMap((entry) => Array.isArray(entry.project_refs) ? entry.project_refs : []))].sort((a, b) => a.localeCompare(b))
+}
+
+function getEntriesForProject(projectRef) {
+  return entryStore.filter((entry) => Array.isArray(entry.project_refs) && entry.project_refs.includes(projectRef))
+}
+
+function buildTimeline(entries = entryStore, options = {}) {
+  const edges = deriveChronicleEdges(entries)
   return createChronicleTimeline({
-    entries: entryStore,
+    entries,
     edges,
-    timeline_id: "chronicle-local-node-timeline",
-    title: "Chronicle Local Node Timeline",
+    timeline_id: options.timeline_id ?? "chronicle-local-node-timeline",
+    title: options.title ?? "Chronicle Local Node Timeline",
   })
 }
 
@@ -181,7 +189,23 @@ function renderMarkdownTimeline(timeline) {
   return lines.join("\n")
 }
 
-function renderHtmlView(timeline) {
+function renderProjectLinks(projectRefs) {
+  if (projectRefs.length === 0) return "<p class=\"empty\">No project refs found yet.</p>"
+
+  return `
+    <div class="projects">
+      <strong>Projects</strong>
+      <ul>
+        ${projectRefs.map((projectRef) => `<li><a href="/project/${encodeURIComponent(projectRef)}/view">${escapeHtml(projectRef)}</a></li>`).join("\n")}
+      </ul>
+    </div>
+  `
+}
+
+function renderHtmlView(timeline, options = {}) {
+  const heading = options.heading ?? "Chronicle Local Node History"
+  const lead = options.lead ?? "A simple local browser view over persisted Chronicle timeline events."
+  const backLink = options.backLink ? `<a href="${options.backLink}">Back to all history</a>` : ""
   const eventItems = timeline.events.length === 0
     ? `<p class="empty">No Chronicle entries stored yet.</p>`
     : timeline.events.map((event) => `
@@ -203,7 +227,7 @@ function renderHtmlView(timeline) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Chronicle Local Node History</title>
+    <title>${escapeHtml(heading)}</title>
     <style>
       :root {
         color-scheme: light;
@@ -241,12 +265,19 @@ function renderHtmlView(timeline) {
         text-decoration: none;
         margin-right: 16px;
       }
-      .meta {
+      .meta, .projects {
         margin: 0 0 24px;
         padding: 12px 16px;
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: 10px;
+      }
+      .projects ul {
+        margin: 8px 0 0;
+      }
+      .projects a {
+        color: var(--accent);
+        text-decoration: none;
       }
       .event {
         background: var(--card);
@@ -290,17 +321,19 @@ function renderHtmlView(timeline) {
   </head>
   <body>
     <main>
-      <h1>Chronicle Local Node History</h1>
-      <p class="lead">A simple local browser view over persisted Chronicle timeline events.</p>
+      <h1>${escapeHtml(heading)}</h1>
+      <p class="lead">${escapeHtml(lead)}</p>
       <div class="links">
         <a href="/chronicle.md">View Markdown history</a>
         <a href="/timeline">View JSON timeline</a>
         <a href="/entries">View stored entries</a>
+        ${backLink}
       </div>
       <div class="meta">
         <strong>Timeline:</strong> ${escapeHtml(timeline.title)}<br />
         <strong>Event count:</strong> ${escapeHtml(timeline.events.length)}
       </div>
+      ${renderProjectLinks(getProjectRefs())}
       ${eventItems}
     </main>
   </body>
@@ -422,6 +455,43 @@ const server = http.createServer(async (request, response) => {
         entries: entryStore,
         store_path: STORE_PATH,
       })
+    }
+
+    if (request.method === "GET" && url.pathname === "/projects") {
+      const projects = getProjectRefs()
+      return json(response, 200, {
+        ok: true,
+        count: projects.length,
+        projects,
+      })
+    }
+
+    if (request.method === "GET" && url.pathname.startsWith("/project/")) {
+      const parts = url.pathname.split("/").filter(Boolean)
+      const projectRef = parts[1] ? decodeURIComponent(parts[1]) : ""
+      const projectEntries = getEntriesForProject(projectRef)
+      const projectTimeline = buildTimeline(projectEntries, {
+        timeline_id: `chronicle-project-${projectRef}-timeline`,
+        title: `Chronicle Project Timeline: ${projectRef}`,
+      })
+
+      if (parts.length === 2) {
+        return json(response, 200, {
+          ok: true,
+          project_ref: projectRef,
+          count: projectEntries.length,
+          entries: projectEntries,
+          timeline: projectTimeline,
+        })
+      }
+
+      if (parts.length === 3 && parts[2] === "view") {
+        return html(response, 200, renderHtmlView(projectTimeline, {
+          heading: `Chronicle Project History: ${projectRef}`,
+          lead: `A project-filtered browser view for ${projectRef}.`,
+          backLink: "/view",
+        }))
+      }
     }
 
     if (request.method === "GET" && url.pathname === "/timeline") {

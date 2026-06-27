@@ -249,6 +249,12 @@ Open:
 
 `http://localhost:8080/view`
 
+## View project history
+
+Example:
+
+`http://localhost:8080/project/project-chronicle-core/view`
+
 The local node now uses file-backed local storage in `data/chronicle-local-store.json`.
 
 Delete `data/chronicle-local-store.json` to clear local state.
