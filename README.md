@@ -302,6 +302,10 @@ Position evolution examples:
 - `http://localhost:8080/position/position-chronicle-core-v0.1.0/evolution`
 - `http://localhost:8080/position/position-chronicle-core-v0.1.0/evolution/view`
 
+Position snapshot example:
+
+- `http://localhost:8080/position/position-chronicle-core-v0.1.0/snapshot`
+
 ## Export Chronicle Bundle
 
 - `GET http://localhost:8080/export`

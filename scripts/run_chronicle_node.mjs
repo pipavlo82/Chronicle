@@ -326,6 +326,41 @@ function createPositionEvolution(entries) {
   }
 }
 
+function createPositionSnapshot(positionId, entries) {
+  const summary = createPositionSummary(entries)
+  const evolution = createPositionEvolution(entries)
+  const entryRefs = [...entries].sort(compareEntries).map((entry) => entry.entry_id)
+  const projectRefs = [...new Set(entries.flatMap((entry) => Array.isArray(entry.project_refs) ? entry.project_refs : []))].sort((a, b) => a.localeCompare(b))
+  const releaseRefs = [...new Set(entries.map((entry) => getReleaseId(entry)))].sort((a, b) => a.localeCompare(b))
+  const proofRefs = []
+  const proofObjectIds = new Set()
+
+  for (const entry of entries) {
+    for (const ref of Array.isArray(entry.proof_object_refs) ? entry.proof_object_refs : []) {
+      if (typeof ref.proof_object_id === "string" && !proofObjectIds.has(ref.proof_object_id)) {
+        proofObjectIds.add(ref.proof_object_id)
+        proofRefs.push(ref)
+      }
+    }
+  }
+
+  return {
+    position_id: positionId,
+    generated_at: new Date().toISOString(),
+    scorecard: summary,
+    evolution: {
+      point_count: evolution.point_count,
+      first_seen: evolution.first_seen,
+      latest_seen: evolution.latest_seen,
+      active_days: evolution.active_days,
+    },
+    entry_refs: entryRefs,
+    project_refs: projectRefs,
+    release_refs: releaseRefs,
+    proof_refs: proofRefs,
+  }
+}
+
 function isValidChronicleBundle(bundle) {
   return (
     bundle &&
@@ -452,6 +487,7 @@ function renderEvolutionHtml(positionId, evolution) {
       <div class="links">
         <a href="/position/${encodeURIComponent(positionId)}/view">View Position history</a>
         <a href="/position/${encodeURIComponent(positionId)}/scorecard/view">View Position scorecard</a>
+        <a href="/position/${encodeURIComponent(positionId)}/snapshot">Export Position snapshot</a>
         <a href="/position/${encodeURIComponent(positionId)}/export">Export Position bundle</a>
         <a href="/view">Back to all history</a>
       </div>
@@ -521,6 +557,8 @@ function renderScorecardHtml(positionId, summary) {
       <p>Derived local metrics for the accumulated verified history inside this Chronicle Position.</p>
       <div class="links">
         <a href="/position/${encodeURIComponent(positionId)}/view">View Position history</a>
+        <a href="/position/${encodeURIComponent(positionId)}/evolution/view">View Position evolution</a>
+        <a href="/position/${encodeURIComponent(positionId)}/snapshot">Export Position snapshot</a>
         <a href="/position/${encodeURIComponent(positionId)}/export">Export Position bundle</a>
         <a href="/view">Back to all history</a>
       </div>
@@ -662,6 +700,7 @@ function renderHtmlView(timeline, options = {}) {
         <a href="/export">Export bundle</a>
         ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/scorecard/view">View Position scorecard</a>` : ""}
         ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/evolution/view">View Position evolution</a>` : ""}
+        ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/snapshot">Export Position snapshot</a>` : ""}
         ${backLink}
       </div>
       <div class="meta">
@@ -1109,6 +1148,10 @@ const server = http.createServer(async (request, response) => {
 
       if (parts.length === 4 && parts[2] === "evolution" && parts[3] === "view") {
         return html(response, 200, renderEvolutionHtml(positionId, createPositionEvolution(positionEntries)))
+      }
+
+      if (parts.length === 3 && parts[2] === "snapshot") {
+        return json(response, 200, createPositionSnapshot(positionId, positionEntries))
       }
 
       if (parts.length === 3 && parts[2] === "export") {
