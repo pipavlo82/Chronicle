@@ -179,8 +179,18 @@ function getReleaseId(entry) {
     : "unreleased"
 }
 
+function getProfileId(entry) {
+  return typeof entry?.metadata?.profile_id === "string" && entry.metadata.profile_id.trim()
+    ? entry.metadata.profile_id
+    : "unprofiled"
+}
+
 function getReleaseIds(entries = entryStore) {
   return [...new Set(entries.map((entry) => getReleaseId(entry)))].sort((a, b) => a.localeCompare(b))
+}
+
+function getProfileIds(entries = entryStore) {
+  return [...new Set(entries.map((entry) => getProfileId(entry)))].sort((a, b) => a.localeCompare(b))
 }
 
 function getEntriesForProject(projectRef) {
@@ -189,6 +199,10 @@ function getEntriesForProject(projectRef) {
 
 function getEntriesForRelease(releaseId) {
   return entryStore.filter((entry) => getReleaseId(entry) === releaseId)
+}
+
+function getEntriesForProfile(profileId) {
+  return entryStore.filter((entry) => getProfileId(entry) === profileId)
 }
 
 function buildTimeline(entries = entryStore, options = {}) {
@@ -261,6 +275,19 @@ function renderReleaseLinks(releaseIds) {
       <strong>Releases</strong>
       <ul>
         ${releaseIds.map((releaseId) => `<li><a href="/release/${encodeURIComponent(releaseId)}/view">${escapeHtml(releaseId)}</a> — <a href="/release/${encodeURIComponent(releaseId)}/export">export bundle</a></li>`).join("\n")}
+      </ul>
+    </div>
+  `
+}
+
+function renderProfileLinks(profileIds) {
+  if (profileIds.length === 0) return "<p class=\"empty\">No profile ids found yet.</p>"
+
+  return `
+    <div class="projects">
+      <strong>Profiles</strong>
+      <ul>
+        ${profileIds.map((profileId) => `<li><a href="/profile/${encodeURIComponent(profileId)}/view">${escapeHtml(profileId)}</a> — <a href="/profile/${encodeURIComponent(profileId)}/export">export bundle</a></li>`).join("\n")}
       </ul>
     </div>
   `
@@ -400,6 +427,7 @@ function renderHtmlView(timeline, options = {}) {
       </div>
       ${renderProjectLinks(getProjectRefs())}
       ${renderReleaseLinks(getReleaseIds())}
+      ${renderProfileLinks(getProfileIds())}
       ${eventItems}
     </main>
   </body>
@@ -446,6 +474,7 @@ function createEntryFromReceiptProof(proof) {
           ? proof.metadata.label
           : `Imported proof ${proof.proof_object_id}`,
       release: typeof proof.metadata?.release === "string" ? proof.metadata.release : undefined,
+      profile_id: typeof proof.metadata?.profile_id === "string" ? proof.metadata.profile_id : undefined,
       imported_from: "ReceiptOS",
       source_proof_object_id: proof.proof_object_id,
       source_proof_ref: proof.proof_ref,
@@ -468,6 +497,7 @@ function createEntriesFromReceiptTimelineCapsule(capsule) {
     metadata: {
       label: event.label,
       release: typeof event.metadata?.release === "string" ? event.metadata.release : defaultRelease,
+      profile_id: typeof event.metadata?.profile_id === "string" ? event.metadata.profile_id : undefined,
       imported_from: "ReceiptOS.timeline",
       source_event_id: event.event_id,
       source_proof_object_id: capsule.proof_object_ref.proof_object_id,
@@ -663,6 +693,15 @@ const server = http.createServer(async (request, response) => {
       })
     }
 
+    if (request.method === "GET" && url.pathname === "/profiles") {
+      const profiles = getProfileIds()
+      return json(response, 200, {
+        ok: true,
+        count: profiles.length,
+        profiles,
+      })
+    }
+
     if (request.method === "GET" && url.pathname === "/export") {
       return json(response, 200, createChronicleBundle("all", entryStore))
     }
@@ -731,6 +770,38 @@ const server = http.createServer(async (request, response) => {
       }
     }
 
+    if (request.method === "GET" && url.pathname.startsWith("/profile/")) {
+      const parts = url.pathname.split("/").filter(Boolean)
+      const profileId = parts[1] ? decodeURIComponent(parts[1]) : ""
+      const profileEntries = getEntriesForProfile(profileId)
+      const profileTimeline = buildTimeline(profileEntries, {
+        timeline_id: `chronicle-profile-${profileId}-timeline`,
+        title: `Chronicle Profile Timeline: ${profileId}`,
+      })
+
+      if (parts.length === 2) {
+        return json(response, 200, {
+          ok: true,
+          profile_id: profileId,
+          count: profileEntries.length,
+          entries: profileEntries,
+          timeline: profileTimeline,
+        })
+      }
+
+      if (parts.length === 3 && parts[2] === "view") {
+        return html(response, 200, renderHtmlView(profileTimeline, {
+          heading: `Chronicle Profile History: ${profileId}`,
+          lead: `A profile-filtered browser view for ${profileId}.`,
+          backLink: "/view",
+        }))
+      }
+
+      if (parts.length === 3 && parts[2] === "export") {
+        return json(response, 200, createChronicleBundle(profileId, profileEntries))
+      }
+    }
+
     if (request.method === "GET" && url.pathname === "/timeline") {
       return json(response, 200, buildTimeline())
     }
@@ -755,5 +826,5 @@ const server = http.createServer(async (request, response) => {
 server.listen(PORT, () => {
   console.log(`Chronicle local node listening on http://localhost:${PORT}`)
   console.log(`Persistent store: ${STORE_PATH}`)
-  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /timeline, GET /chronicle.md, GET /view")
+  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /releases, GET /profiles, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /release/:release_id, GET /release/:release_id/export, GET /profile/:profile_id, GET /profile/:profile_id/export, GET /timeline, GET /chronicle.md, GET /view")
 })
