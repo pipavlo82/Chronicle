@@ -102,6 +102,7 @@ Chronicle explores whether that verified history can become a durable asset clas
 - `src/chronicle_mvp_timeline_generator_core.mjs`
 - `scripts/validate_chronicle_mvp_timeline.mjs`
 - `scripts/run_chronicle_mvp_demo.mjs`
+- `scripts/run_chronicle_node.mjs`
 
 ## Chronicle MVP End-to-End Flow
 
@@ -143,6 +144,20 @@ Expected output includes:
 - graph edges
 - timeline events
 - final markdown/history view
+
+## Run Chronicle local node
+
+```bash
+node scripts/run_chronicle_node.mjs
+```
+
+Then test:
+
+- `GET http://localhost:8080/health`
+- `POST http://localhost:8080/entries`
+- `GET http://localhost:8080/entries`
+- `GET http://localhost:8080/timeline`
+- `GET http://localhost:8080/chronicle.md`
 
 ## MVP flow
 
