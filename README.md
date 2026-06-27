@@ -99,7 +99,9 @@ Chronicle explores whether that verified history can become a durable asset clas
 - `examples/chronicle-mvp-generated-timeline.json`
 - `src/chronicle_mvp_data_model.ts`
 - `src/chronicle_mvp_timeline_generator.ts`
+- `src/chronicle_mvp_timeline_generator_core.mjs`
 - `scripts/validate_chronicle_mvp_timeline.mjs`
+- `scripts/run_chronicle_mvp_demo.mjs`
 
 ## Chronicle MVP End-to-End Flow
 
@@ -115,6 +117,7 @@ The current Chronicle MVP can now be demonstrated end to end using:
 - `examples/chronicle-mvp-generated-timeline.json`
 - `src/chronicle_mvp_timeline_generator.ts`
 - `scripts/validate_chronicle_mvp_timeline.mjs`
+- `scripts/run_chronicle_mvp_demo.mjs`
 - `docs/chronicle_mvp_e2e_demo.md`
 
 The MVP example currently models a realistic software project flow:
@@ -127,6 +130,20 @@ Each stage becomes a Chronicle Entry.
 Relationships become Chronicle Graph edges.
 The generated Timeline then becomes both machine-readable output and a simple human-readable historical view.
 
+## Run the MVP demo
+
+```bash
+node scripts/run_chronicle_mvp_demo.mjs
+```
+
+Expected output includes:
+
+- proof object refs
+- entries
+- graph edges
+- timeline events
+- final markdown/history view
+
 ## MVP flow
 
 The first Chronicle implementation target is intentionally small:
@@ -136,7 +153,7 @@ ReceiptOS Proof Object
 → Chronicle Graph  
 → Chronicle Timeline
 
-The repository now includes a minimal implementation-neutral MVP data model in `src/chronicle_mvp_data_model.ts`, a timeline generator in `src/chronicle_mvp_timeline_generator.ts`, a matching example fixture in `examples/chronicle-mvp-example.json`, and a generated timeline example in `examples/chronicle-mvp-generated-timeline.json`.
+The repository now includes a minimal implementation-neutral MVP data model in `src/chronicle_mvp_data_model.ts`, a timeline generator in `src/chronicle_mvp_timeline_generator.ts`, a runtime generator core in `src/chronicle_mvp_timeline_generator_core.mjs`, a matching example fixture in `examples/chronicle-mvp-example.json`, and a generated timeline example in `examples/chronicle-mvp-generated-timeline.json`.
 
 This MVP flow is intended to prove only that Chronicle can:
 

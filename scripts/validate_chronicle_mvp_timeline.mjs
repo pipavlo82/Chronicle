@@ -1,6 +1,6 @@
 import fixture from "../examples/chronicle-mvp-example.json" with { type: "json" }
 import generatedFixture from "../examples/chronicle-mvp-generated-timeline.json" with { type: "json" }
-import { createChronicleTimeline } from "../src/chronicle_mvp_timeline_generator.ts"
+import { createChronicleTimeline } from "../src/chronicle_mvp_timeline_generator_core.mjs"
 
 function assert(condition, message) {
   if (!condition) {
