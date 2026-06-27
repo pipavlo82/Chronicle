@@ -225,6 +225,23 @@ Expected result:
 
 Re-importing the same ReceiptOS proof object is idempotent.
 
+## Import Receipt Timeline
+
+Example PowerShell command:
+
+```powershell
+$capsule = Get-Content .\examples\receipt-timeline-import-example.json -Raw
+
+Invoke-RestMethod -Method Post `
+  -Uri http://localhost:8080/import/receipt-timeline `
+  -ContentType 'application/json' `
+  -Body $capsule
+```
+
+This imports multiple timeline events from one ReceiptOS-style capsule, creates one Chronicle Entry per event, preserves the shared proof reference, and makes the result visible in `/entries`, `/timeline`, `/chronicle.md`, `/view`, and `/project/:project_ref/view`.
+
+Re-importing the same timeline capsule is idempotent for already imported event IDs.
+
 ### 5. Generate timeline
 
 ```powershell
