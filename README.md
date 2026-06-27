@@ -64,8 +64,32 @@ Chronicle explores whether that verified history can become a durable asset clas
 - `docs/TOKENIZATION.md`
 - `docs/OPEN_QUESTIONS.md`
 - `docs/NON_GOALS.md`
+- `docs/chronicle_mvp_v0.md`
+- `docs/chronicle_first_build_plan_v0.md`
 - `examples/chronicle-example.json`
 - `examples/receipt-example.json`
+- `examples/chronicle-mvp-example.json`
+- `src/chronicle_mvp_data_model.ts`
+
+## MVP flow
+
+The first Chronicle implementation target is intentionally small:
+
+ReceiptOS Proof Object  
+→ Chronicle Entry  
+→ Chronicle Graph  
+→ Chronicle Timeline
+
+The repository now includes a minimal implementation-neutral MVP data model in `src/chronicle_mvp_data_model.ts` and a matching example fixture in `examples/chronicle-mvp-example.json`.
+
+This MVP flow is intended to prove only that Chronicle can:
+
+- ingest a ReceiptOS Proof Object reference
+- create Chronicle Entries
+- link Entries with Chronicle Graph edges
+- project ordered continuity as a Chronicle Timeline
+
+It is explicitly not yet implementing Profile, Portfolio, Release View, ownership, NFT, marketplace, or reputation logic.
 
 ## Scope
 
