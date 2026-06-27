@@ -197,6 +197,16 @@ function createChronicleBundle(scope, entries) {
   }
 }
 
+function isValidChronicleBundle(bundle) {
+  return (
+    bundle &&
+    typeof bundle === "object" &&
+    bundle.bundle_type === "chronicle.bundle.v0" &&
+    Array.isArray(bundle.entries) &&
+    bundle.entries.every(isValidChronicleEntry)
+  )
+}
+
 function renderMarkdownTimeline(timeline) {
   const lines = ["# Chronicle Local Node History", ""]
 
@@ -551,6 +561,50 @@ const server = http.createServer(async (request, response) => {
       })
     }
 
+    if (request.method === "POST" && url.pathname === "/import/bundle") {
+      const bundle = await readJsonBody(request)
+
+      if (!isValidChronicleBundle(bundle)) {
+        return json(response, 400, {
+          ok: false,
+          error: "Invalid Chronicle bundle payload",
+          required: ["bundle_type=chronicle.bundle.v0", "entries[]"],
+        })
+      }
+
+      let importedCount = 0
+      let existingCount = 0
+      const importedEntryIds = []
+      const existingEntryIds = []
+
+      for (const entry of bundle.entries) {
+        const existing = findExistingEntryByEntryId(entry.entry_id)
+        if (existing) {
+          existingCount += 1
+          existingEntryIds.push(existing.entry_id)
+          continue
+        }
+
+        entryStore.push(structuredClone(entry))
+        importedCount += 1
+        importedEntryIds.push(entry.entry_id)
+      }
+
+      if (importedCount > 0) saveStore()
+
+      return json(response, importedCount > 0 ? 201 : 200, {
+        ok: true,
+        imported: importedCount > 0,
+        imported_count: importedCount,
+        existing_count: existingCount,
+        imported_entry_ids: importedEntryIds,
+        existing_entry_ids: existingEntryIds,
+        entry_count: entryStore.length,
+        scope: bundle.scope,
+        store_path: STORE_PATH,
+      })
+    }
+
     if (request.method === "GET" && url.pathname === "/entries") {
       return json(response, 200, {
         ok: true,
@@ -629,5 +683,5 @@ const server = http.createServer(async (request, response) => {
 server.listen(PORT, () => {
   console.log(`Chronicle local node listening on http://localhost:${PORT}`)
   console.log(`Persistent store: ${STORE_PATH}`)
-  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, GET /entries, GET /projects, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /timeline, GET /chronicle.md, GET /view")
+  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /timeline, GET /chronicle.md, GET /view")
 })

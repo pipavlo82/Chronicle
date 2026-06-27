@@ -277,6 +277,17 @@ Example:
 - `GET http://localhost:8080/export`
 - `GET http://localhost:8080/project/project-chronicle-core/export`
 
+## Import Chronicle Bundle
+
+```powershell
+$bundle = Invoke-RestMethod http://localhost:8080/export | ConvertTo-Json -Depth 20
+
+Invoke-RestMethod -Method Post `
+  -Uri http://localhost:8080/import/bundle `
+  -ContentType 'application/json' `
+  -Body $bundle
+```
+
 The local node now uses file-backed local storage in `data/chronicle-local-store.json`.
 
 Delete `data/chronicle-local-store.json` to clear local state.
