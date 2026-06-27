@@ -173,8 +173,22 @@ function getProjectRefs(entries = entryStore) {
   return [...new Set(entries.flatMap((entry) => Array.isArray(entry.project_refs) ? entry.project_refs : []))].sort((a, b) => a.localeCompare(b))
 }
 
+function getReleaseId(entry) {
+  return typeof entry?.metadata?.release === "string" && entry.metadata.release.trim()
+    ? entry.metadata.release
+    : "unreleased"
+}
+
+function getReleaseIds(entries = entryStore) {
+  return [...new Set(entries.map((entry) => getReleaseId(entry)))].sort((a, b) => a.localeCompare(b))
+}
+
 function getEntriesForProject(projectRef) {
   return entryStore.filter((entry) => Array.isArray(entry.project_refs) && entry.project_refs.includes(projectRef))
+}
+
+function getEntriesForRelease(releaseId) {
+  return entryStore.filter((entry) => getReleaseId(entry) === releaseId)
 }
 
 function buildTimeline(entries = entryStore, options = {}) {
@@ -234,6 +248,19 @@ function renderProjectLinks(projectRefs) {
       <strong>Projects</strong>
       <ul>
         ${projectRefs.map((projectRef) => `<li><a href="/project/${encodeURIComponent(projectRef)}/view">${escapeHtml(projectRef)}</a> — <a href="/project/${encodeURIComponent(projectRef)}/export">export bundle</a></li>`).join("\n")}
+      </ul>
+    </div>
+  `
+}
+
+function renderReleaseLinks(releaseIds) {
+  if (releaseIds.length === 0) return "<p class=\"empty\">No release ids found yet.</p>"
+
+  return `
+    <div class="projects">
+      <strong>Releases</strong>
+      <ul>
+        ${releaseIds.map((releaseId) => `<li><a href="/release/${encodeURIComponent(releaseId)}/view">${escapeHtml(releaseId)}</a> — <a href="/release/${encodeURIComponent(releaseId)}/export">export bundle</a></li>`).join("\n")}
       </ul>
     </div>
   `
@@ -372,6 +399,7 @@ function renderHtmlView(timeline, options = {}) {
         <strong>Event count:</strong> ${escapeHtml(timeline.events.length)}
       </div>
       ${renderProjectLinks(getProjectRefs())}
+      ${renderReleaseLinks(getReleaseIds())}
       ${eventItems}
     </main>
   </body>
@@ -417,6 +445,7 @@ function createEntryFromReceiptProof(proof) {
         typeof proof.metadata?.label === "string"
           ? proof.metadata.label
           : `Imported proof ${proof.proof_object_id}`,
+      release: typeof proof.metadata?.release === "string" ? proof.metadata.release : undefined,
       imported_from: "ReceiptOS",
       source_proof_object_id: proof.proof_object_id,
       source_proof_ref: proof.proof_ref,
@@ -427,6 +456,7 @@ function createEntryFromReceiptProof(proof) {
 function createEntriesFromReceiptTimelineCapsule(capsule) {
   const proofRef = createProofObjectRef(capsule.proof_object_ref)
   const projectRefs = Array.isArray(capsule.project_refs) ? [...capsule.project_refs] : undefined
+  const defaultRelease = typeof capsule.proof_object_ref?.metadata?.release === "string" ? capsule.proof_object_ref.metadata.release : undefined
 
   return capsule.events.map((event) => ({
     entry_id: `entry-${event.event_id}`,
@@ -437,6 +467,7 @@ function createEntriesFromReceiptTimelineCapsule(capsule) {
     created_at: event.created_at,
     metadata: {
       label: event.label,
+      release: typeof event.metadata?.release === "string" ? event.metadata.release : defaultRelease,
       imported_from: "ReceiptOS.timeline",
       source_event_id: event.event_id,
       source_proof_object_id: capsule.proof_object_ref.proof_object_id,
@@ -623,6 +654,15 @@ const server = http.createServer(async (request, response) => {
       })
     }
 
+    if (request.method === "GET" && url.pathname === "/releases") {
+      const releases = getReleaseIds()
+      return json(response, 200, {
+        ok: true,
+        count: releases.length,
+        releases,
+      })
+    }
+
     if (request.method === "GET" && url.pathname === "/export") {
       return json(response, 200, createChronicleBundle("all", entryStore))
     }
@@ -656,6 +696,38 @@ const server = http.createServer(async (request, response) => {
 
       if (parts.length === 3 && parts[2] === "export") {
         return json(response, 200, createChronicleBundle(projectRef, projectEntries))
+      }
+    }
+
+    if (request.method === "GET" && url.pathname.startsWith("/release/")) {
+      const parts = url.pathname.split("/").filter(Boolean)
+      const releaseId = parts[1] ? decodeURIComponent(parts[1]) : ""
+      const releaseEntries = getEntriesForRelease(releaseId)
+      const releaseTimeline = buildTimeline(releaseEntries, {
+        timeline_id: `chronicle-release-${releaseId}-timeline`,
+        title: `Chronicle Release Timeline: ${releaseId}`,
+      })
+
+      if (parts.length === 2) {
+        return json(response, 200, {
+          ok: true,
+          release_id: releaseId,
+          count: releaseEntries.length,
+          entries: releaseEntries,
+          timeline: releaseTimeline,
+        })
+      }
+
+      if (parts.length === 3 && parts[2] === "view") {
+        return html(response, 200, renderHtmlView(releaseTimeline, {
+          heading: `Chronicle Release History: ${releaseId}`,
+          lead: `A release-filtered browser view for ${releaseId}.`,
+          backLink: "/view",
+        }))
+      }
+
+      if (parts.length === 3 && parts[2] === "export") {
+        return json(response, 200, createChronicleBundle(releaseId, releaseEntries))
       }
     }
 
