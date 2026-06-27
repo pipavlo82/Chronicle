@@ -361,6 +361,27 @@ function createPositionSnapshot(positionId, entries) {
   }
 }
 
+function createPositionLineage(positionId, entries) {
+  const ordered = [...entries].sort(compareEntries)
+  const sourceProjects = [...new Set(ordered.flatMap((entry) => Array.isArray(entry.project_refs) ? entry.project_refs : []))].sort((a, b) => a.localeCompare(b))
+  const sourceReleases = [...new Set(ordered.map((entry) => getReleaseId(entry)))].sort((a, b) => a.localeCompare(b))
+  const sourceProfiles = [...new Set(ordered.map((entry) => getProfileId(entry)))].sort((a, b) => a.localeCompare(b))
+  const sourceBundles = [...new Set(ordered.map((entry) => entry?.metadata?.source_bundle_scope).filter((value) => typeof value === "string" && value.trim()))].sort((a, b) => a.localeCompare(b))
+  const sourceEntries = ordered.map((entry) => entry.entry_id)
+  const provenancePoints = ordered.map((entry) => entry.created_at).filter((value) => typeof value === "string").sort((a, b) => a.localeCompare(b))
+
+  return {
+    position_id: positionId,
+    source_projects: sourceProjects,
+    source_releases: sourceReleases,
+    source_profiles: sourceProfiles,
+    source_bundles: sourceBundles,
+    source_entries: sourceEntries,
+    first_provenance_point: provenancePoints[0] ?? null,
+    latest_provenance_point: provenancePoints[provenancePoints.length - 1] ?? null,
+  }
+}
+
 function isValidChronicleBundle(bundle) {
   return (
     bundle &&
@@ -442,6 +463,56 @@ function renderPositionLinks(positionIds) {
   `
 }
 
+function renderLineageHtml(positionId, lineage) {
+  const renderList = (items) => items.length === 0 ? "<em>none</em>" : items.map((item) => `<code>${escapeHtml(item)}</code>`).join(", ")
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chronicle Position Lineage: ${escapeHtml(positionId)}</title>
+    <style>
+      body { margin: 0; font-family: Inter, Segoe UI, Arial, sans-serif; background: #f7f7f9; color: #1f2937; }
+      main { max-width: 1000px; margin: 0 auto; padding: 32px 20px 48px; }
+      h1 { margin: 0 0 8px; font-size: 2rem; }
+      p { color: #6b7280; }
+      .links a { color: #111827; text-decoration: none; margin-right: 16px; }
+      table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #d1d5db; border-radius: 12px; overflow: hidden; margin-top: 20px; }
+      th, td { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
+      th { width: 260px; background: #f9fafb; }
+      tr:last-child th, tr:last-child td { border-bottom: none; }
+      code { background: #eef2f7; padding: 1px 5px; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Chronicle Position Lineage: ${escapeHtml(positionId)}</h1>
+      <p>Derived provenance summary for where this accumulated verified history came from.</p>
+      <div class="links">
+        <a href="/position/${encodeURIComponent(positionId)}/view">View Position history</a>
+        <a href="/position/${encodeURIComponent(positionId)}/scorecard/view">View Position scorecard</a>
+        <a href="/position/${encodeURIComponent(positionId)}/evolution/view">View Position evolution</a>
+        <a href="/position/${encodeURIComponent(positionId)}/snapshot">Export Position snapshot</a>
+        <a href="/position/${encodeURIComponent(positionId)}/export">Export Position bundle</a>
+        <a href="/view">Back to all history</a>
+      </div>
+      <table>
+        <tbody>
+          <tr><th><code>source_projects</code></th><td>${renderList(lineage.source_projects)}</td></tr>
+          <tr><th><code>source_releases</code></th><td>${renderList(lineage.source_releases)}</td></tr>
+          <tr><th><code>source_profiles</code></th><td>${renderList(lineage.source_profiles)}</td></tr>
+          <tr><th><code>source_bundles</code></th><td>${renderList(lineage.source_bundles)}</td></tr>
+          <tr><th><code>source_entries</code></th><td>${renderList(lineage.source_entries)}</td></tr>
+          <tr><th><code>first_provenance_point</code></th><td>${escapeHtml(lineage.first_provenance_point ?? "n/a")}</td></tr>
+          <tr><th><code>latest_provenance_point</code></th><td>${escapeHtml(lineage.latest_provenance_point ?? "n/a")}</td></tr>
+        </tbody>
+      </table>
+    </main>
+  </body>
+</html>`
+}
+
 function renderEvolutionHtml(positionId, evolution) {
   const rows = evolution.points.length === 0
     ? `<tr><td colspan="7">No evolution points available yet.</td></tr>`
@@ -488,6 +559,7 @@ function renderEvolutionHtml(positionId, evolution) {
         <a href="/position/${encodeURIComponent(positionId)}/view">View Position history</a>
         <a href="/position/${encodeURIComponent(positionId)}/scorecard/view">View Position scorecard</a>
         <a href="/position/${encodeURIComponent(positionId)}/snapshot">Export Position snapshot</a>
+        <a href="/position/${encodeURIComponent(positionId)}/lineage/view">View Position lineage</a>
         <a href="/position/${encodeURIComponent(positionId)}/export">Export Position bundle</a>
         <a href="/view">Back to all history</a>
       </div>
@@ -701,6 +773,7 @@ function renderHtmlView(timeline, options = {}) {
         ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/scorecard/view">View Position scorecard</a>` : ""}
         ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/evolution/view">View Position evolution</a>` : ""}
         ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/snapshot">Export Position snapshot</a>` : ""}
+        ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/lineage/view">View Position lineage</a>` : ""}
         ${backLink}
       </div>
       <div class="meta">
@@ -931,7 +1004,13 @@ const server = http.createServer(async (request, response) => {
           continue
         }
 
-        entryStore.push(structuredClone(entry))
+        const importedEntry = structuredClone(entry)
+        importedEntry.metadata = {
+          ...(importedEntry.metadata && typeof importedEntry.metadata === "object" ? importedEntry.metadata : {}),
+          source_bundle_scope: bundle.scope,
+        }
+
+        entryStore.push(importedEntry)
         importedCount += 1
         importedEntryIds.push(entry.entry_id)
       }
@@ -1154,6 +1233,18 @@ const server = http.createServer(async (request, response) => {
         return json(response, 200, createPositionSnapshot(positionId, positionEntries))
       }
 
+      if (parts.length === 3 && parts[2] === "lineage") {
+        return json(response, 200, {
+          ok: true,
+          position_id: positionId,
+          lineage: createPositionLineage(positionId, positionEntries),
+        })
+      }
+
+      if (parts.length === 4 && parts[2] === "lineage" && parts[3] === "view") {
+        return html(response, 200, renderLineageHtml(positionId, createPositionLineage(positionId, positionEntries)))
+      }
+
       if (parts.length === 3 && parts[2] === "export") {
         return json(response, 200, {
           ...createChronicleBundle(positionId, positionEntries),
@@ -1186,5 +1277,5 @@ const server = http.createServer(async (request, response) => {
 server.listen(PORT, () => {
   console.log(`Chronicle local node listening on http://localhost:${PORT}`)
   console.log(`Persistent store: ${STORE_PATH}`)
-  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /releases, GET /profiles, GET /positions, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /release/:release_id, GET /release/:release_id/export, GET /profile/:profile_id, GET /profile/:profile_id/export, GET /position/:position_id, GET /position/:position_id/export, GET /timeline, GET /chronicle.md, GET /view")
+  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /releases, GET /profiles, GET /positions, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /release/:release_id, GET /release/:release_id/export, GET /profile/:profile_id, GET /profile/:profile_id/export, GET /position/:position_id, GET /position/:position_id/scorecard, GET /position/:position_id/evolution, GET /position/:position_id/snapshot, GET /position/:position_id/lineage, GET /position/:position_id/export, GET /timeline, GET /chronicle.md, GET /view")
 })
