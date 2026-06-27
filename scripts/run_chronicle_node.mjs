@@ -277,6 +277,39 @@ function createReceiptView(receiptId, entries) {
   }
 }
 
+function createPositionArtifact(positionId, entries) {
+  const scorecard = createPositionSummary(entries)
+  const lineage = createPositionLineage(positionId, entries)
+  const snapshot = createPositionSnapshot(positionId, entries)
+  const receiptIds = [...new Set(entries.map((entry) => getReceiptId(entry)))].sort((a, b) => a.localeCompare(b))
+
+  return {
+    position_id: positionId,
+    receipt_count: receiptIds.length,
+    entry_count: scorecard.event_count,
+    project_count: scorecard.project_count,
+    release_count: scorecard.release_count,
+    first_seen: scorecard.first_event_at,
+    latest_seen: scorecard.latest_event_at,
+    active_days: scorecard.active_days,
+    lineage_summary: {
+      source_projects: lineage.source_projects,
+      source_releases: lineage.source_releases,
+      source_profiles: lineage.source_profiles,
+      source_bundles: lineage.source_bundles,
+      source_entries: lineage.source_entries,
+      first_provenance_point: lineage.first_provenance_point,
+      latest_provenance_point: lineage.latest_provenance_point,
+    },
+    snapshot_link: `/position/${encodeURIComponent(positionId)}/snapshot`,
+    receipt_links: receiptIds.map((receiptId) => ({
+      receipt_id: receiptId,
+      href: `/receipt/${encodeURIComponent(receiptId)}/view`,
+    })),
+    snapshot,
+  }
+}
+
 function createPositionSummary(entries) {
   const proofObjectIds = new Set()
   const projectIds = new Set()
@@ -508,8 +541,81 @@ function renderReceiptLinks(receiptIds) {
   `
 }
 
+function renderArtifactHtml(positionId, artifact) {
+  const lineageList = (items) => items.length === 0 ? "<em>none</em>" : items.map((item) => `<code>${escapeHtml(item)}</code>`).join(", ")
+  const receiptLinks = artifact.receipt_links.length === 0
+    ? "<em>none</em>"
+    : artifact.receipt_links.map((item) => `<li><a href="${item.href}">${escapeHtml(item.receipt_id)}</a></li>`).join("\n")
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chronicle Position Artifact: ${escapeHtml(positionId)}</title>
+    <style>
+      body { margin: 0; font-family: Inter, Segoe UI, Arial, sans-serif; background: #f7f7f9; color: #1f2937; }
+      main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 48px; }
+      h1 { margin: 0 0 8px; font-size: 2rem; }
+      p { color: #6b7280; }
+      .links a { color: #111827; text-decoration: none; margin-right: 16px; }
+      .card, table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #d1d5db; border-radius: 12px; overflow: hidden; margin-top: 20px; }
+      .card { padding: 16px 18px; box-sizing: border-box; }
+      th, td { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
+      th { width: 240px; background: #f9fafb; }
+      tr:last-child th, tr:last-child td { border-bottom: none; }
+      code { background: #eef2f7; padding: 1px 5px; border-radius: 6px; }
+      ul { margin: 8px 0 0; }
+      .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+      .metric { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
+      .metric strong { display: block; font-size: 0.9rem; color: #6b7280; margin-bottom: 4px; }
+      .metric span { font-size: 1.1rem; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Chronicle Position Artifact: ${escapeHtml(positionId)}</h1>
+      <p>ReceiptOS proves what happened. Chronicle turns proven events into portable history. This artifact is a local visible form of accumulated verified history.</p>
+      <div class="links">
+        <a href="/position/${encodeURIComponent(positionId)}/view">View Position history</a>
+        <a href="/position/${encodeURIComponent(positionId)}/scorecard/view">View Position scorecard</a>
+        <a href="/position/${encodeURIComponent(positionId)}/evolution/view">View Position evolution</a>
+        <a href="/position/${encodeURIComponent(positionId)}/lineage/view">View Position lineage</a>
+        <a href="${artifact.snapshot_link}">Export Position snapshot</a>
+        <a href="/view">Back to all history</a>
+      </div>
+      <div class="card">
+        <div class="metric-grid">
+          <div class="metric"><strong>position_id</strong><span>${escapeHtml(artifact.position_id)}</span></div>
+          <div class="metric"><strong>receipt_count</strong><span>${escapeHtml(artifact.receipt_count)}</span></div>
+          <div class="metric"><strong>entry_count</strong><span>${escapeHtml(artifact.entry_count)}</span></div>
+          <div class="metric"><strong>project_count</strong><span>${escapeHtml(artifact.project_count)}</span></div>
+          <div class="metric"><strong>release_count</strong><span>${escapeHtml(artifact.release_count)}</span></div>
+          <div class="metric"><strong>first_seen</strong><span>${escapeHtml(artifact.first_seen ?? "n/a")}</span></div>
+          <div class="metric"><strong>latest_seen</strong><span>${escapeHtml(artifact.latest_seen ?? "n/a")}</span></div>
+          <div class="metric"><strong>active_days</strong><span>${escapeHtml(artifact.active_days)}</span></div>
+        </div>
+      </div>
+      <table>
+        <tbody>
+          <tr><th><code>source_projects</code></th><td>${lineageList(artifact.lineage_summary.source_projects)}</td></tr>
+          <tr><th><code>source_releases</code></th><td>${lineageList(artifact.lineage_summary.source_releases)}</td></tr>
+          <tr><th><code>source_profiles</code></th><td>${lineageList(artifact.lineage_summary.source_profiles)}</td></tr>
+          <tr><th><code>source_bundles</code></th><td>${lineageList(artifact.lineage_summary.source_bundles)}</td></tr>
+          <tr><th><code>first_provenance_point</code></th><td>${escapeHtml(artifact.lineage_summary.first_provenance_point ?? "n/a")}</td></tr>
+          <tr><th><code>latest_provenance_point</code></th><td>${escapeHtml(artifact.lineage_summary.latest_provenance_point ?? "n/a")}</td></tr>
+          <tr><th><code>snapshot_link</code></th><td><a href="${artifact.snapshot_link}">${artifact.snapshot_link}</a></td></tr>
+          <tr><th><code>receipt_links</code></th><td><ul>${receiptLinks}</ul></td></tr>
+        </tbody>
+      </table>
+    </main>
+  </body>
+</html>`
+}
+
 function renderReceiptHtml(receipt) {
   const renderList = (items) => items.length === 0 ? "<em>none</em>" : items.map((item) => `<code>${escapeHtml(item)}</code>`).join(", ")
+  const renderPositionList = (items) => items.length === 0 ? "<em>none</em>" : items.map((item) => `<a href="/position/${encodeURIComponent(item)}/view"><code>${escapeHtml(item)}</code></a>`).join(", ")
   const proofRefs = receipt.proof_refs.length === 0
     ? "<em>none</em>"
     : receipt.proof_refs.map((ref) => `<div><code>${escapeHtml(ref.proof_object_id)}</code> — ${escapeHtml(ref.proof_ref ?? "no-proof-ref")}</div>`).join("")
@@ -550,7 +656,7 @@ function renderReceiptHtml(receipt) {
           <tr><th><code>receipt_timestamp</code></th><td>${escapeHtml(receipt.receipt_timestamp ?? "n/a")}</td></tr>
           <tr><th><code>proof_refs</code></th><td>${proofRefs}</td></tr>
           <tr><th><code>linked_entries</code></th><td>${renderList(receipt.linked_entries)}</td></tr>
-          <tr><th><code>linked_positions</code></th><td>${renderList(receipt.linked_positions)}</td></tr>
+          <tr><th><code>linked_positions</code></th><td>${renderPositionList(receipt.linked_positions)}</td></tr>
         </tbody>
       </table>
     </main>
@@ -655,6 +761,7 @@ function renderEvolutionHtml(positionId, evolution) {
         <a href="/position/${encodeURIComponent(positionId)}/scorecard/view">View Position scorecard</a>
         <a href="/position/${encodeURIComponent(positionId)}/snapshot">Export Position snapshot</a>
         <a href="/position/${encodeURIComponent(positionId)}/lineage/view">View Position lineage</a>
+        <a href="/position/${encodeURIComponent(positionId)}/artifact/view">View Position artifact</a>
         <a href="/position/${encodeURIComponent(positionId)}/export">Export Position bundle</a>
         <a href="/view">Back to all history</a>
       </div>
@@ -869,6 +976,7 @@ function renderHtmlView(timeline, options = {}) {
         ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/evolution/view">View Position evolution</a>` : ""}
         ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/snapshot">Export Position snapshot</a>` : ""}
         ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/lineage/view">View Position lineage</a>` : ""}
+        ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/artifact/view">View Position artifact</a>` : ""}
         ${backLink}
       </div>
       <div class="meta">
@@ -1368,6 +1476,14 @@ const server = http.createServer(async (request, response) => {
         return html(response, 200, renderLineageHtml(positionId, createPositionLineage(positionId, positionEntries)))
       }
 
+      if (parts.length === 3 && parts[2] === "artifact") {
+        return json(response, 200, createPositionArtifact(positionId, positionEntries))
+      }
+
+      if (parts.length === 4 && parts[2] === "artifact" && parts[3] === "view") {
+        return html(response, 200, renderArtifactHtml(positionId, createPositionArtifact(positionId, positionEntries)))
+      }
+
       if (parts.length === 3 && parts[2] === "export") {
         return json(response, 200, {
           ...createChronicleBundle(positionId, positionEntries),
@@ -1400,5 +1516,5 @@ const server = http.createServer(async (request, response) => {
 server.listen(PORT, () => {
   console.log(`Chronicle local node listening on http://localhost:${PORT}`)
   console.log(`Persistent store: ${STORE_PATH}`)
-  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /releases, GET /profiles, GET /positions, GET /receipts, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /release/:release_id, GET /release/:release_id/export, GET /profile/:profile_id, GET /profile/:profile_id/export, GET /receipt/:receipt_id, GET /position/:position_id, GET /position/:position_id/scorecard, GET /position/:position_id/evolution, GET /position/:position_id/snapshot, GET /position/:position_id/lineage, GET /position/:position_id/export, GET /timeline, GET /chronicle.md, GET /view")
+  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /releases, GET /profiles, GET /positions, GET /receipts, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /release/:release_id, GET /release/:release_id/export, GET /profile/:profile_id, GET /profile/:profile_id/export, GET /receipt/:receipt_id, GET /position/:position_id, GET /position/:position_id/scorecard, GET /position/:position_id/evolution, GET /position/:position_id/snapshot, GET /position/:position_id/lineage, GET /position/:position_id/artifact, GET /position/:position_id/export, GET /timeline, GET /chronicle.md, GET /view")
 })
