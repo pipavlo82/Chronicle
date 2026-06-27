@@ -106,6 +106,16 @@ function isValidChronicleEntry(entry) {
   )
 }
 
+function isValidReceiptProofObject(proof) {
+  return (
+    proof &&
+    typeof proof === "object" &&
+    typeof proof.proof_object_id === "string" &&
+    typeof proof.proof_system === "string" &&
+    proof.proof_system === "ReceiptOS"
+  )
+}
+
 function compareEntries(a, b) {
   const aTs = a.created_at ?? ""
   const bTs = b.created_at ?? ""
@@ -297,6 +307,37 @@ function renderHtmlView(timeline) {
 </html>`
 }
 
+function createEntryFromReceiptProof(proof) {
+  const proofRef = {
+    proof_object_id: proof.proof_object_id,
+    proof_system: proof.proof_system,
+    receipt_root: proof.receipt_root,
+    proof_ref: proof.proof_ref,
+    replay_ref: proof.replay_ref,
+    anchor_ref: proof.anchor_ref,
+    metadata: proof.metadata && typeof proof.metadata === "object" ? { ...proof.metadata } : undefined,
+  }
+
+  return {
+    entry_id: `entry-${proof.proof_object_id}`,
+    proof_object_refs: [proofRef],
+    project_refs: Array.isArray(proof.project_refs) ? [...proof.project_refs] : undefined,
+    organization_refs: Array.isArray(proof.organization_refs) ? [...proof.organization_refs] : undefined,
+    relation_type: typeof proof.relation_type === "string" ? proof.relation_type : "imported",
+    chronology_position: typeof proof.chronology_position === "string" ? proof.chronology_position : undefined,
+    created_at: typeof proof.created_at === "string" ? proof.created_at : new Date().toISOString(),
+    metadata: {
+      label:
+        typeof proof.metadata?.label === "string"
+          ? proof.metadata.label
+          : `Imported proof ${proof.proof_object_id}`,
+      imported_from: "ReceiptOS",
+      source_proof_object_id: proof.proof_object_id,
+      source_proof_ref: proof.proof_ref,
+    },
+  }
+}
+
 loadStore()
 
 const server = http.createServer(async (request, response) => {
@@ -323,6 +364,30 @@ const server = http.createServer(async (request, response) => {
       return json(response, 201, {
         ok: true,
         stored: entry.entry_id,
+        entry_count: entryStore.length,
+        store_path: STORE_PATH,
+      })
+    }
+
+    if (request.method === "POST" && url.pathname === "/import/receipt") {
+      const proof = await readJsonBody(request)
+
+      if (!isValidReceiptProofObject(proof)) {
+        return json(response, 400, {
+          ok: false,
+          error: "Invalid ReceiptOS proof object payload",
+          required: ["proof_object_id", "proof_system=ReceiptOS"],
+        })
+      }
+
+      const entry = createEntryFromReceiptProof(proof)
+      entryStore.push(structuredClone(entry))
+      saveStore()
+
+      return json(response, 201, {
+        ok: true,
+        imported_proof_object_id: proof.proof_object_id,
+        created_entry_id: entry.entry_id,
         entry_count: entryStore.length,
         store_path: STORE_PATH,
       })
@@ -361,5 +426,5 @@ const server = http.createServer(async (request, response) => {
 server.listen(PORT, () => {
   console.log(`Chronicle local node listening on http://localhost:${PORT}`)
   console.log(`Persistent store: ${STORE_PATH}`)
-  console.log("Endpoints: GET /health, POST /entries, GET /entries, GET /timeline, GET /chronicle.md, GET /view")
+  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, GET /entries, GET /timeline, GET /chronicle.md, GET /view")
 })

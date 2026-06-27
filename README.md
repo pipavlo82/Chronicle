@@ -200,6 +200,29 @@ Invoke-RestMethod -Method Post `
 Invoke-RestMethod http://localhost:8080/entries
 ```
 
+## Import ReceiptOS Proof
+
+POST `/import/receipt`
+
+Example request:
+
+```powershell
+$proof = Get-Content .\examples\receipt-import-example.json -Raw
+
+Invoke-RestMethod -Method Post `
+  -Uri http://localhost:8080/import/receipt `
+  -ContentType 'application/json' `
+  -Body $proof
+```
+
+Expected result:
+
+- a Chronicle Entry is created automatically
+- the imported proof becomes visible in `/entries`
+- the imported proof appears in `/timeline`
+- the imported proof appears in `/chronicle.md`
+- the imported proof appears in `/view`
+
 ### 5. Generate timeline
 
 ```powershell
