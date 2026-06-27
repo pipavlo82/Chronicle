@@ -1,29 +1,30 @@
 {
   "proof_object_ref": {
-    "proof_object_id": "proofobj-receiptos-001",
+    "proof_object_id": "proofobj-receiptos-chronicle-core-001",
     "proof_system": "ReceiptOS",
-    "receipt_root": "0xproofroot001",
-    "proof_ref": "receiptos://proof/001",
-    "replay_ref": "receiptos://replay/001",
-    "anchor_ref": "receiptos://anchor/001",
+    "receipt_root": "0xproofroot-chronicle-core-001",
+    "proof_ref": "receiptos://proof/chronicle-core/001",
+    "replay_ref": "receiptos://replay/chronicle-core/001",
+    "anchor_ref": "receiptos://anchor/chronicle-core/001",
     "metadata": {
-      "kind": "software-release-milestone",
-      "project": "chronicle-core"
+      "kind": "software-project-flow",
+      "project": "chronicle-core",
+      "release": "v0.1.0"
     }
   },
   "entries": [
     {
-      "entry_id": "entry-implementation-001",
+      "entry_id": "entry-implementation-completed-001",
       "proof_object_refs": [
         {
-          "proof_object_id": "proofobj-receiptos-001",
+          "proof_object_id": "proofobj-receiptos-chronicle-core-001",
           "proof_system": "ReceiptOS",
-          "receipt_root": "0xproofroot001",
-          "proof_ref": "receiptos://proof/001",
-          "replay_ref": "receiptos://replay/001",
-          "anchor_ref": "receiptos://anchor/001",
+          "receipt_root": "0xproofroot-chronicle-core-001",
+          "proof_ref": "receiptos://proof/chronicle-core/001",
+          "replay_ref": "receiptos://replay/chronicle-core/001",
+          "anchor_ref": "receiptos://anchor/chronicle-core/001",
           "metadata": {
-            "kind": "implementation"
+            "kind": "implementation_completed"
           }
         }
       ],
@@ -32,71 +33,81 @@
       "chronology_position": "1",
       "created_at": "2026-06-26T20:00:00Z",
       "metadata": {
-        "label": "Implementation milestone"
+        "label": "Implementation completed"
       }
     },
     {
-      "entry_id": "entry-release-001",
+      "entry_id": "entry-verification-completed-001",
       "proof_object_refs": [
         {
-          "proof_object_id": "proofobj-receiptos-001",
+          "proof_object_id": "proofobj-receiptos-chronicle-core-001",
           "proof_system": "ReceiptOS",
-          "receipt_root": "0xproofroot001",
-          "proof_ref": "receiptos://proof/001",
-          "replay_ref": "receiptos://replay/001",
-          "anchor_ref": "receiptos://anchor/001",
+          "receipt_root": "0xproofroot-chronicle-core-001",
+          "proof_ref": "receiptos://proof/chronicle-core/001",
+          "replay_ref": "receiptos://replay/chronicle-core/001",
+          "anchor_ref": "receiptos://anchor/chronicle-core/001",
           "metadata": {
-            "kind": "release"
+            "kind": "verification_completed"
+          }
+        }
+      ],
+      "project_refs": ["project-chronicle-core"],
+      "relation_type": "verified",
+      "chronology_position": "2",
+      "created_at": "2026-06-26T20:30:00Z",
+      "metadata": {
+        "label": "Verification completed"
+      }
+    },
+    {
+      "entry_id": "entry-release-created-001",
+      "proof_object_refs": [
+        {
+          "proof_object_id": "proofobj-receiptos-chronicle-core-001",
+          "proof_system": "ReceiptOS",
+          "receipt_root": "0xproofroot-chronicle-core-001",
+          "proof_ref": "receiptos://proof/chronicle-core/001",
+          "replay_ref": "receiptos://replay/chronicle-core/001",
+          "anchor_ref": "receiptos://anchor/chronicle-core/001",
+          "metadata": {
+            "kind": "release_created"
           }
         }
       ],
       "project_refs": ["project-chronicle-core"],
       "relation_type": "release",
-      "chronology_position": "2",
+      "chronology_position": "3",
       "created_at": "2026-06-26T21:00:00Z",
       "metadata": {
-        "label": "Release milestone"
+        "label": "Release created"
       }
     }
   ],
   "edges": [
     {
-      "edge_id": "edge-001",
-      "from_entry_id": "entry-implementation-001",
-      "to_entry_id": "entry-release-001",
+      "edge_id": "edge-implementation-to-verification-001",
+      "from_entry_id": "entry-implementation-completed-001",
+      "to_entry_id": "entry-verification-completed-001",
+      "relation_type": "reviews",
+      "created_at": "2026-06-26T20:30:00Z",
+      "metadata": {
+        "label": "Implementation moved into verification"
+      }
+    },
+    {
+      "edge_id": "edge-verification-to-release-001",
+      "from_entry_id": "entry-verification-completed-001",
+      "to_entry_id": "entry-release-created-001",
       "relation_type": "continuation_of",
       "created_at": "2026-06-26T21:00:00Z",
       "metadata": {
-        "label": "Implementation continues into release"
+        "label": "Verified work continues into release"
       }
     }
   ],
   "timeline": {
-    "timeline_id": "timeline-chronicle-core-release-001",
-    "title": "Chronicle Core Release Timeline",
-    "events": [
-      {
-        "entry_id": "entry-implementation-001",
-        "timestamp": "2026-06-26T20:00:00Z",
-        "chronology_position": "1",
-        "relation_type": "created",
-        "display_label": "Implementation milestone",
-        "metadata": {
-          "source": "entry"
-        }
-      },
-      {
-        "entry_id": "entry-release-001",
-        "edge_id": "edge-001",
-        "timestamp": "2026-06-26T21:00:00Z",
-        "chronology_position": "2",
-        "relation_type": "continuation_of",
-        "display_label": "Release milestone",
-        "metadata": {
-          "source": "entry+edge"
-        }
-      }
-    ],
+    "timeline_id": "timeline-chronicle-core-v0-1-0",
+    "title": "Chronicle Core v0.1.0 Timeline",
     "metadata": {
       "example": true,
       "mvp_flow": "ReceiptOS Proof Object -> Chronicle Entry -> Chronicle Graph -> Chronicle Timeline"

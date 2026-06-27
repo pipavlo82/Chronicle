@@ -1,70 +1,102 @@
 {
-  "timeline_id": "timeline-chronicle-core-release-001",
-  "title": "Chronicle Core Release Timeline",
+  "timeline_id": "timeline-chronicle-core-v0-1-0",
+  "title": "Chronicle Core v0.1.0 Timeline",
   "events": [
     {
-      "entry_id": "entry-implementation-001",
+      "entry_id": "entry-implementation-completed-001",
       "timestamp": "2026-06-26T20:00:00Z",
       "chronology_position": "1",
       "relation_type": "created",
-      "display_label": "Implementation milestone",
+      "display_label": "Implementation completed",
       "proof_object_refs": [
         {
-          "proof_object_id": "proofobj-receiptos-001",
+          "proof_object_id": "proofobj-receiptos-chronicle-core-001",
           "proof_system": "ReceiptOS",
-          "receipt_root": "0xproofroot001",
-          "proof_ref": "receiptos://proof/001",
-          "replay_ref": "receiptos://replay/001",
-          "anchor_ref": "receiptos://anchor/001",
+          "receipt_root": "0xproofroot-chronicle-core-001",
+          "proof_ref": "receiptos://proof/chronicle-core/001",
+          "replay_ref": "receiptos://replay/chronicle-core/001",
+          "anchor_ref": "receiptos://anchor/chronicle-core/001",
           "metadata": {
-            "kind": "implementation"
+            "kind": "implementation_completed"
           }
         }
       ],
       "metadata": {
         "source": "entry",
         "entry_metadata": {
-          "label": "Implementation milestone"
+          "label": "Implementation completed"
         }
       }
     },
     {
-      "entry_id": "entry-release-001",
-      "edge_id": "edge-001",
-      "timestamp": "2026-06-26T21:00:00Z",
+      "entry_id": "entry-verification-completed-001",
+      "edge_id": "edge-implementation-to-verification-001",
+      "timestamp": "2026-06-26T20:30:00Z",
       "chronology_position": "2",
-      "relation_type": "continuation_of",
-      "display_label": "Release milestone",
+      "relation_type": "reviews",
+      "display_label": "Verification completed",
       "proof_object_refs": [
         {
-          "proof_object_id": "proofobj-receiptos-001",
+          "proof_object_id": "proofobj-receiptos-chronicle-core-001",
           "proof_system": "ReceiptOS",
-          "receipt_root": "0xproofroot001",
-          "proof_ref": "receiptos://proof/001",
-          "replay_ref": "receiptos://replay/001",
-          "anchor_ref": "receiptos://anchor/001",
+          "receipt_root": "0xproofroot-chronicle-core-001",
+          "proof_ref": "receiptos://proof/chronicle-core/001",
+          "replay_ref": "receiptos://replay/chronicle-core/001",
+          "anchor_ref": "receiptos://anchor/chronicle-core/001",
           "metadata": {
-            "kind": "release"
+            "kind": "verification_completed"
           }
         }
       ],
       "metadata": {
         "source": "entry+edge",
-        "related_entry_id": "entry-implementation-001",
-        "edge_created_at": "2026-06-26T21:00:00Z",
+        "related_entry_id": "entry-implementation-completed-001",
+        "edge_created_at": "2026-06-26T20:30:00Z",
         "edge_metadata": {
-          "label": "Implementation continues into release"
+          "label": "Implementation moved into verification"
         },
         "entry_metadata": {
-          "label": "Release milestone"
+          "label": "Verification completed"
+        }
+      }
+    },
+    {
+      "entry_id": "entry-release-created-001",
+      "edge_id": "edge-verification-to-release-001",
+      "timestamp": "2026-06-26T21:00:00Z",
+      "chronology_position": "3",
+      "relation_type": "continuation_of",
+      "display_label": "Release created",
+      "proof_object_refs": [
+        {
+          "proof_object_id": "proofobj-receiptos-chronicle-core-001",
+          "proof_system": "ReceiptOS",
+          "receipt_root": "0xproofroot-chronicle-core-001",
+          "proof_ref": "receiptos://proof/chronicle-core/001",
+          "replay_ref": "receiptos://replay/chronicle-core/001",
+          "anchor_ref": "receiptos://anchor/chronicle-core/001",
+          "metadata": {
+            "kind": "release_created"
+          }
+        }
+      ],
+      "metadata": {
+        "source": "entry+edge",
+        "related_entry_id": "entry-verification-completed-001",
+        "edge_created_at": "2026-06-26T21:00:00Z",
+        "edge_metadata": {
+          "label": "Verified work continues into release"
+        },
+        "entry_metadata": {
+          "label": "Release created"
         }
       }
     }
   ],
   "metadata": {
     "generated_by": "createChronicleTimeline",
-    "event_count": 2,
-    "edge_count": 1,
+    "event_count": 3,
+    "edge_count": 2,
     "mvp_flow": "ReceiptOS Proof Object -> Chronicle Entry -> Chronicle Graph -> Chronicle Timeline"
   }
 }
