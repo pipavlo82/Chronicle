@@ -292,6 +292,11 @@ Example:
 
 `http://localhost:8080/position/position-chronicle-core-v0.1.0/view`
 
+Position scorecard examples:
+
+- `http://localhost:8080/position/position-chronicle-core-v0.1.0/scorecard`
+- `http://localhost:8080/position/position-chronicle-core-v0.1.0/scorecard/view`
+
 ## Export Chronicle Bundle
 
 - `GET http://localhost:8080/export`

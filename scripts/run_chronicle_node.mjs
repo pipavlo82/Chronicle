@@ -250,6 +250,7 @@ function createPositionSummary(entries) {
   const projectIds = new Set()
   const releaseIds = new Set()
   const profileIds = new Set()
+  const dayIds = new Set()
   const timestamps = []
 
   for (const entry of entries) {
@@ -263,7 +264,10 @@ function createPositionSummary(entries) {
     if (releaseId) releaseIds.add(releaseId)
     const profileId = getProfileId(entry)
     if (profileId) profileIds.add(profileId)
-    if (typeof entry.created_at === "string") timestamps.push(entry.created_at)
+    if (typeof entry.created_at === "string") {
+      timestamps.push(entry.created_at)
+      dayIds.add(entry.created_at.slice(0, 10))
+    }
   }
 
   timestamps.sort((a, b) => a.localeCompare(b))
@@ -276,6 +280,7 @@ function createPositionSummary(entries) {
     profile_count: profileIds.size,
     first_event_at: timestamps[0] ?? null,
     latest_event_at: timestamps[timestamps.length - 1] ?? null,
+    active_days: dayIds.size,
   }
 }
 
@@ -358,6 +363,56 @@ function renderPositionLinks(positionIds) {
       </ul>
     </div>
   `
+}
+
+function renderScorecardHtml(positionId, summary) {
+  const rows = [
+    ["event_count", summary.event_count],
+    ["proof_object_count", summary.proof_object_count],
+    ["project_count", summary.project_count],
+    ["release_count", summary.release_count],
+    ["profile_count", summary.profile_count],
+    ["first_event_at", summary.first_event_at ?? "n/a"],
+    ["latest_event_at", summary.latest_event_at ?? "n/a"],
+    ["active_days", summary.active_days],
+  ]
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chronicle Position Scorecard: ${escapeHtml(positionId)}</title>
+    <style>
+      body { margin: 0; font-family: Inter, Segoe UI, Arial, sans-serif; background: #f7f7f9; color: #1f2937; }
+      main { max-width: 900px; margin: 0 auto; padding: 32px 20px 48px; }
+      h1 { margin: 0 0 8px; font-size: 2rem; }
+      p { color: #6b7280; }
+      .links a { color: #111827; text-decoration: none; margin-right: 16px; }
+      table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #d1d5db; border-radius: 12px; overflow: hidden; margin-top: 20px; }
+      th, td { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+      th { width: 240px; background: #f9fafb; }
+      tr:last-child th, tr:last-child td { border-bottom: none; }
+      code { background: #eef2f7; padding: 1px 5px; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Chronicle Position Scorecard: ${escapeHtml(positionId)}</h1>
+      <p>Derived local metrics for the accumulated verified history inside this Chronicle Position.</p>
+      <div class="links">
+        <a href="/position/${encodeURIComponent(positionId)}/view">View Position history</a>
+        <a href="/position/${encodeURIComponent(positionId)}/export">Export Position bundle</a>
+        <a href="/view">Back to all history</a>
+      </div>
+      <table>
+        <tbody>
+          ${rows.map(([label, value]) => `<tr><th><code>${escapeHtml(label)}</code></th><td>${escapeHtml(value)}</td></tr>`).join("\n")}
+        </tbody>
+      </table>
+    </main>
+  </body>
+</html>`
 }
 
 function renderHtmlView(timeline, options = {}) {
@@ -486,6 +541,7 @@ function renderHtmlView(timeline, options = {}) {
         <a href="/timeline">View JSON timeline</a>
         <a href="/entries">View stored entries</a>
         <a href="/export">Export bundle</a>
+        ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/scorecard/view">View Position scorecard</a>` : ""}
         ${backLink}
       </div>
       <div class="meta">
@@ -905,9 +961,22 @@ const server = http.createServer(async (request, response) => {
       if (parts.length === 3 && parts[2] === "view") {
         return html(response, 200, renderHtmlView(positionTimeline, {
           heading: `Chronicle Position History: ${positionId}`,
-          lead: `A position-filtered browser view for ${positionId}. Event count: ${summary.event_count}. Proof objects: ${summary.proof_object_count}. Projects: ${summary.project_count}. Releases: ${summary.release_count}. Profiles: ${summary.profile_count}. First event: ${summary.first_event_at ?? "n/a"}. Latest event: ${summary.latest_event_at ?? "n/a"}.`,
+          lead: `A position-filtered browser view for ${positionId}. Event count: ${summary.event_count}. Proof objects: ${summary.proof_object_count}. Projects: ${summary.project_count}. Releases: ${summary.release_count}. Profiles: ${summary.profile_count}. First event: ${summary.first_event_at ?? "n/a"}. Latest event: ${summary.latest_event_at ?? "n/a"}. Active days: ${summary.active_days}.`,
           backLink: "/view",
+          positionId,
         }))
+      }
+
+      if (parts.length === 3 && parts[2] === "scorecard") {
+        return json(response, 200, {
+          ok: true,
+          position_id: positionId,
+          summary,
+        })
+      }
+
+      if (parts.length === 4 && parts[2] === "scorecard" && parts[3] === "view") {
+        return html(response, 200, renderScorecardHtml(positionId, summary))
       }
 
       if (parts.length === 3 && parts[2] === "export") {
