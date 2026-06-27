@@ -69,7 +69,10 @@ Chronicle explores whether that verified history can become a durable asset clas
 - `examples/chronicle-example.json`
 - `examples/receipt-example.json`
 - `examples/chronicle-mvp-example.json`
+- `examples/chronicle-mvp-generated-timeline.json`
 - `src/chronicle_mvp_data_model.ts`
+- `src/chronicle_mvp_timeline_generator.ts`
+- `scripts/validate_chronicle_mvp_timeline.mjs`
 
 ## MVP flow
 
@@ -80,14 +83,14 @@ ReceiptOS Proof Object
 → Chronicle Graph  
 → Chronicle Timeline
 
-The repository now includes a minimal implementation-neutral MVP data model in `src/chronicle_mvp_data_model.ts` and a matching example fixture in `examples/chronicle-mvp-example.json`.
+The repository now includes a minimal implementation-neutral MVP data model in `src/chronicle_mvp_data_model.ts`, a timeline generator in `src/chronicle_mvp_timeline_generator.ts`, a matching example fixture in `examples/chronicle-mvp-example.json`, and a generated timeline example in `examples/chronicle-mvp-generated-timeline.json`.
 
 This MVP flow is intended to prove only that Chronicle can:
 
 - ingest a ReceiptOS Proof Object reference
 - create Chronicle Entries
 - link Entries with Chronicle Graph edges
-- project ordered continuity as a Chronicle Timeline
+- project ordered continuity as a Chronicle Timeline generated from Chronicle Entries and Chronicle Graph edges
 
 It is explicitly not yet implementing Profile, Portfolio, Release View, ownership, NFT, marketplace, or reputation logic.
 

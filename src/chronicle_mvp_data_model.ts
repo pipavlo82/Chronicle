@@ -36,6 +36,7 @@ export type ChronicleTimelineEvent = {
   chronology_position?: string
   relation_type: string
   display_label: string
+  proof_object_refs: ProofObjectRef[]
   metadata?: Record<string, unknown>
 }
 

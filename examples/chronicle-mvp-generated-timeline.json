@@ -1,0 +1,70 @@
+{
+  "timeline_id": "timeline-chronicle-core-release-001",
+  "title": "Chronicle Core Release Timeline",
+  "events": [
+    {
+      "entry_id": "entry-implementation-001",
+      "timestamp": "2026-06-26T20:00:00Z",
+      "chronology_position": "1",
+      "relation_type": "created",
+      "display_label": "Implementation milestone",
+      "proof_object_refs": [
+        {
+          "proof_object_id": "proofobj-receiptos-001",
+          "proof_system": "ReceiptOS",
+          "receipt_root": "0xproofroot001",
+          "proof_ref": "receiptos://proof/001",
+          "replay_ref": "receiptos://replay/001",
+          "anchor_ref": "receiptos://anchor/001",
+          "metadata": {
+            "kind": "implementation"
+          }
+        }
+      ],
+      "metadata": {
+        "source": "entry",
+        "entry_metadata": {
+          "label": "Implementation milestone"
+        }
+      }
+    },
+    {
+      "entry_id": "entry-release-001",
+      "edge_id": "edge-001",
+      "timestamp": "2026-06-26T21:00:00Z",
+      "chronology_position": "2",
+      "relation_type": "continuation_of",
+      "display_label": "Release milestone",
+      "proof_object_refs": [
+        {
+          "proof_object_id": "proofobj-receiptos-001",
+          "proof_system": "ReceiptOS",
+          "receipt_root": "0xproofroot001",
+          "proof_ref": "receiptos://proof/001",
+          "replay_ref": "receiptos://replay/001",
+          "anchor_ref": "receiptos://anchor/001",
+          "metadata": {
+            "kind": "release"
+          }
+        }
+      ],
+      "metadata": {
+        "source": "entry+edge",
+        "related_entry_id": "entry-implementation-001",
+        "edge_created_at": "2026-06-26T21:00:00Z",
+        "edge_metadata": {
+          "label": "Implementation continues into release"
+        },
+        "entry_metadata": {
+          "label": "Release milestone"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "generated_by": "createChronicleTimeline",
+    "event_count": 2,
+    "edge_count": 1,
+    "mvp_flow": "ReceiptOS Proof Object -> Chronicle Entry -> Chronicle Graph -> Chronicle Timeline"
+  }
+}
