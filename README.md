@@ -66,6 +66,7 @@ Chronicle explores whether that verified history can become a durable asset clas
 - `docs/NON_GOALS.md`
 - `docs/chronicle_mvp_v0.md`
 - `docs/chronicle_first_build_plan_v0.md`
+- `docs/chronicle_mvp_e2e_demo.md`
 - `examples/chronicle-example.json`
 - `examples/receipt-example.json`
 - `examples/chronicle-mvp-example.json`
@@ -73,6 +74,32 @@ Chronicle explores whether that verified history can become a durable asset clas
 - `src/chronicle_mvp_data_model.ts`
 - `src/chronicle_mvp_timeline_generator.ts`
 - `scripts/validate_chronicle_mvp_timeline.mjs`
+
+## Chronicle MVP End-to-End Flow
+
+ReceiptOS Proof Object  
+→ Chronicle Entry  
+→ Chronicle Graph  
+→ Chronicle Timeline  
+→ Human-readable Output
+
+The current Chronicle MVP can now be demonstrated end to end using:
+
+- `examples/chronicle-mvp-example.json`
+- `examples/chronicle-mvp-generated-timeline.json`
+- `src/chronicle_mvp_timeline_generator.ts`
+- `scripts/validate_chronicle_mvp_timeline.mjs`
+- `docs/chronicle_mvp_e2e_demo.md`
+
+The MVP example currently models a realistic software project flow:
+
+- implementation completed
+- verification completed
+- release created
+
+Each stage becomes a Chronicle Entry.
+Relationships become Chronicle Graph edges.
+The generated Timeline then becomes both machine-readable output and a simple human-readable historical view.
 
 ## MVP flow
 
