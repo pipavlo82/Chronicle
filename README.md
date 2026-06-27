@@ -154,6 +154,10 @@ cd C:\Users\msi\dev\Chronicle
 node scripts\run_chronicle_node.mjs
 ```
 
+The local node now persists entries to:
+
+`data/chronicle-local-store.json`
+
 ### 2. Health check
 
 ```powershell
@@ -208,7 +212,9 @@ Invoke-RestMethod http://localhost:8080/timeline
 Invoke-RestMethod http://localhost:8080/chronicle.md
 ```
 
-The local node currently uses in-memory storage. Restarting the node clears stored entries.
+The local node now uses file-backed local storage in `data/chronicle-local-store.json`.
+
+Delete `data/chronicle-local-store.json` to clear local state.
 
 ## MVP flow
 
