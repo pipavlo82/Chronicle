@@ -22,7 +22,8 @@
       "relation_type": "created",
       "chronology_position": "1",
       "metadata": {
-        "stage": "implementation"
+        "stage": "implementation",
+        "profile_id": "agent-chronicle-builder"
       }
     },
     {
@@ -32,7 +33,8 @@
       "relation_type": "verified",
       "chronology_position": "2",
       "metadata": {
-        "stage": "verification"
+        "stage": "verification",
+        "profile_id": "agent-chronicle-builder"
       }
     },
     {
@@ -42,7 +44,8 @@
       "relation_type": "release",
       "chronology_position": "3",
       "metadata": {
-        "stage": "release"
+        "stage": "release",
+        "profile_id": "agent-chronicle-builder"
       }
     }
   ]

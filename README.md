@@ -278,6 +278,12 @@ Example:
 
 `http://localhost:8080/release/v0.1.0/view`
 
+## View profile history
+
+Example:
+
+`http://localhost:8080/profile/agent-chronicle-builder/view`
+
 ## Export Chronicle Bundle
 
 - `GET http://localhost:8080/export`
