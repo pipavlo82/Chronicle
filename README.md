@@ -306,6 +306,11 @@ Position snapshot example:
 
 - `http://localhost:8080/position/position-chronicle-core-v0.1.0/snapshot`
 
+Position lineage examples:
+
+- `http://localhost:8080/position/position-chronicle-core-v0.1.0/lineage`
+- `http://localhost:8080/position/position-chronicle-core-v0.1.0/lineage/view`
+
 ## Export Chronicle Bundle
 
 - `GET http://localhost:8080/export`
