@@ -1,8 +1,9 @@
 import fs from "node:fs"
 import path from "node:path"
 import http from "node:http"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import { createChronicleTimeline } from "../src/chronicle_mvp_timeline_generator_core.mjs"
+import { POSITION_ARTIFACT_VERSION_V0, computeArtifactRootV0 } from "../src/chronicle_position_artifact.mjs"
 
 const PORT = 8080
 const __filename = fileURLToPath(import.meta.url)
@@ -281,9 +282,19 @@ function createPositionArtifact(positionId, entries) {
   const scorecard = createPositionSummary(entries)
   const lineage = createPositionLineage(positionId, entries)
   const snapshot = createPositionSnapshot(positionId, entries)
-  const receiptIds = [...new Set(entries.map((entry) => getReceiptId(entry)))].sort((a, b) => a.localeCompare(b))
+  const entryRefs = [...entries].sort(compareEntries).map((entry) => entry.entry_id)
+  const receiptIds = [...new Set(entries.map((entry) => getReceiptId(entry)).filter((value) => typeof value === "string" && value.trim()))].sort((a, b) => a.localeCompare(b))
+  const artifactRoot = computeArtifactRootV0({
+    artifact_version: POSITION_ARTIFACT_VERSION_V0,
+    artifact_scope: "position",
+    position_id: positionId,
+    entry_refs: entryRefs,
+    receipt_refs: receiptIds,
+  })
 
   return {
+    artifact_version: POSITION_ARTIFACT_VERSION_V0,
+    artifact_root: artifactRoot,
     position_id: positionId,
     receipt_count: receiptIds.length,
     entry_count: scorecard.event_count,
@@ -541,7 +552,7 @@ function renderReceiptLinks(receiptIds) {
   `
 }
 
-function renderArtifactHtml(positionId, artifact) {
+export function renderArtifactHtml(positionId, artifact) {
   const lineageList = (items) => items.length === 0 ? "<em>none</em>" : items.map((item) => `<code>${escapeHtml(item)}</code>`).join(", ")
   const receiptLinks = artifact.receipt_links.length === 0
     ? "<em>none</em>"
@@ -587,6 +598,8 @@ function renderArtifactHtml(positionId, artifact) {
       <div class="card">
         <div class="metric-grid">
           <div class="metric"><strong>position_id</strong><span>${escapeHtml(artifact.position_id)}</span></div>
+          <div class="metric"><strong>artifact_version</strong><span>${escapeHtml(artifact.artifact_version)}</span></div>
+          <div class="metric"><strong>artifact_root</strong><span><code>${escapeHtml(artifact.artifact_root)}</code></span></div>
           <div class="metric"><strong>receipt_count</strong><span>${escapeHtml(artifact.receipt_count)}</span></div>
           <div class="metric"><strong>entry_count</strong><span>${escapeHtml(artifact.entry_count)}</span></div>
           <div class="metric"><strong>project_count</strong><span>${escapeHtml(artifact.project_count)}</span></div>
@@ -1070,6 +1083,8 @@ function createEntriesFromReceiptTimelineCapsule(capsule) {
 
 loadStore()
 
+export { createPositionArtifact }
+
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? `localhost:${PORT}`}`)
 
@@ -1513,8 +1528,10 @@ const server = http.createServer(async (request, response) => {
   }
 })
 
-server.listen(PORT, () => {
-  console.log(`Chronicle local node listening on http://localhost:${PORT}`)
-  console.log(`Persistent store: ${STORE_PATH}`)
-  console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /releases, GET /profiles, GET /positions, GET /receipts, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /release/:release_id, GET /release/:release_id/export, GET /profile/:profile_id, GET /profile/:profile_id/export, GET /receipt/:receipt_id, GET /position/:position_id, GET /position/:position_id/scorecard, GET /position/:position_id/evolution, GET /position/:position_id/snapshot, GET /position/:position_id/lineage, GET /position/:position_id/artifact, GET /position/:position_id/export, GET /timeline, GET /chronicle.md, GET /view")
-})
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  server.listen(PORT, () => {
+    console.log(`Chronicle local node listening on http://localhost:${PORT}`)
+    console.log(`Persistent store: ${STORE_PATH}`)
+    console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /releases, GET /profiles, GET /positions, GET /receipts, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /release/:release_id, GET /release/:release_id/export, GET /profile/:profile_id, GET /profile/:profile_id/export, GET /receipt/:receipt_id, GET /position/:position_id, GET /position/:position_id/scorecard, GET /position/:position_id/evolution, GET /position/:position_id/snapshot, GET /position/:position_id/lineage, GET /position/:position_id/artifact, GET /position/:position_id/export, GET /timeline, GET /chronicle.md, GET /view")
+  })
+}

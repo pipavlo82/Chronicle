@@ -311,6 +311,10 @@ Position artifact examples:
 - `http://localhost:8080/position/position-chronicle-core-v0.1.0/artifact`
 - `http://localhost:8080/position/position-chronicle-core-v0.1.0/artifact/view`
 
+Artifact root defines identity of the accumulated scoped history.
+Derived overlays such as scorecard, evolution, snapshot, and lineage are recomputable views and are excluded from artifact identity.
+Chronicle recomputes local history views; it does not certify or score.
+
 Position lineage examples:
 
 - `http://localhost:8080/position/position-chronicle-core-v0.1.0/lineage`
