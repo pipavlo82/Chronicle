@@ -1,77 +1,30 @@
-# Chronicle
+﻿# Chronicle
 
-Chronicle is the continuity and identity layer for durable history built on top of portable proof objects.
+A research project exploring receipts as a new digital asset class.
 
-## Ecosystem framing
+## Chronicle MVP Explainer
 
-**Execute Work. Capture Evidence. Make Proof Portable. Build Durable History.**
+**Chronicle is a continuity layer for proof-bearing work.**
 
-Core ecosystem flow:
+**ReceiptOS proves what happened.**  
+**Chronicle explains how proven events become history.**
 
-Stealth  
-→ Crystal Receipt / ReceiptOS  
-→ Chronicle
+![Chronicle ecosystem map](docs/images/chronicle-ecosystem-map.jpg)
 
-Mental model:
+MVP flow:
 
-Execute  
-→ Receipt  
-→ History
+ReceiptOS Proof Object  
+тЖТ Chronicle Entry  
+тЖТ Chronicle Graph  
+тЖТ Chronicle Timeline  
+тЖТ Human-readable Output
 
-One-line stack summary:
+Chronicle does not replace ReceiptOS verification.
+Chronicle does not modify proof objects.
+Chronicle does not define ownership, identity, NFT, marketplace, or reputation logic in MVP.
 
-**Stealth executes. Crystal Receipt packages proofs. Chronicle preserves history.**
+A longer MVP explanation is in `docs/chronicle_mvp_explainer.md`.
 
-## Repo responsibilities
-
-### Stealth
-
-Stealth is the execution surface.
-
-It is responsible for:
-- execution runtime
-- evidence capture
-- local receipt explorer
-- export for downstream proof/history systems
-
-Stealth is **not** the proof interpretation layer and **not** the history layer.
-
-### Crystal Receipt / ReceiptOS
-
-Crystal Receipt / ReceiptOS is the portable proof substrate.
-
-It is responsible for:
-- canonical `receipt_root`
-- portable proof objects
-- Evidence Capsule
-- Provenance Summary
-- proof artifacts
-- verification semantics
-- producer-neutral proof boundary
-- optional downstream presentation artifacts such as the crystal visual layer
-
-Crystal Receipt / ReceiptOS is **not** the execution runtime and **not** the continuity/history graph.
-
-### Chronicle
-
-Chronicle is the continuity and identity layer above portable proof objects.
-
-It is responsible for:
-- Chronicle Entries that reference portable proof objects and add continuity context
-- immutable stored historical records
-- recomputable history objects
-- continuity views and exports
-- the current canonical object stack:
-  - Position *(no root yet)*
-  - Artifact (`artifact_root`)
-  - Collection (`collection_root`)
-  - Portfolio (`portfolio_root`)
-
-Chronicle does not replace ReceiptOS verification, does not modify proof objects, and does not define scoring, reputation, ownership, NFT, marketplace, or proof-engine semantics.
-
-## Core architectural rule
-
-**Proof first. History second. Presentation last.**
 
 Chronicle starts from a simple premise:
 
@@ -80,7 +33,49 @@ Chronicle starts from a simple premise:
 - the platform is temporary
 - the verified history survives
 
-The durable object is the proof-bearing history, carried upward from receipts into continuity.
+The receipt is the durable object.
+
+## What Chronicle is
+
+Chronicle is a first-principles research repository about whether cryptographically verifiable receipts can become a new digital asset class.
+
+It is not centered on speculative scarcity. It is centered on durable, portable, verifiable history.
+
+Chronicle explores how verified work history might become:
+
+- ownable
+- composable
+- portable across platforms
+- valuable over long time horizons
+- usable as individual, organizational, and machine history
+
+## What Chronicle is not
+
+Chronicle is:
+
+- **not another NFT project**
+- **not another marketplace**
+- **not another token**
+
+NFTs may become one transport layer for some use cases, but they are not the core abstraction here.
+
+The core object is the receipt itself:
+
+- portable
+- cryptographically verifiable
+- long-lived digital history
+
+## Core thesis
+
+If AI systems, runtimes, and companies are transient, then the only durable object may be the verified history of what was done, by whom, under what conditions, with what evidence, and with what outcome.
+
+Chronicle explores whether that verified history can become a durable asset class in its own right.
+
+## Connections
+
+- **ReceiptOS** provides proof packaging, verification, replay-oriented evidence, and proof presentation.
+- **CYPHES** provides work, workflow meaning, and settlement.
+- **Chronicle** explores ownership, composition, transfer, and long-term value of the resulting receipts.
 
 ## Repository structure
 
@@ -114,10 +109,10 @@ The durable object is the proof-bearing history, carried upward from receipts in
 ## Chronicle MVP End-to-End Flow
 
 ReceiptOS Proof Object  
-→ Chronicle Entry  
-→ Chronicle Graph  
-→ Chronicle Timeline  
-→ Human-readable Output
+тЖТ Chronicle Entry  
+тЖТ Chronicle Graph  
+тЖТ Chronicle Timeline  
+тЖТ Human-readable Output
 
 The current Chronicle MVP can now be demonstrated end to end using:
 
@@ -332,15 +327,8 @@ Artifact Collection examples:
 - `http://localhost:8080/collection/project-chronicle-core/export`
 - `http://localhost:8080/collection/project-chronicle-core/view`
 
-Chronicle Portfolio examples:
-
-- `http://localhost:8080/portfolios`
-- `http://localhost:8080/portfolio/position-chronicle-core-v0.1.0`
-- `http://localhost:8080/portfolio/position-chronicle-core-v0.1.0/export`
-- `http://localhost:8080/portfolio/position-chronicle-core-v0.1.0/view`
-
-Receipt → `receipt_root`. Artifact → `artifact_root`. Collection → `collection_root`. Portfolio → `portfolio_root`.
-Portfolio recomputes a portable body of Chronicle history. It does not score, certify, verify, sign, or create ownership.
+Receipt тЖТ `receipt_root`. Artifact тЖТ `artifact_root`. Collection тЖТ `collection_root`.
+Collection recomputes history. It does not score, certify, verify, or sign artifacts.
 
 ## View ReceiptOS receipts
 
@@ -375,9 +363,9 @@ Delete `data/chronicle-local-store.json` to clear local state.
 The first Chronicle implementation target is intentionally small:
 
 ReceiptOS Proof Object  
-→ Chronicle Entry  
-→ Chronicle Graph  
-→ Chronicle Timeline
+тЖТ Chronicle Entry  
+тЖТ Chronicle Graph  
+тЖТ Chronicle Timeline
 
 The repository now includes a minimal implementation-neutral MVP data model in `src/chronicle_mvp_data_model.ts`, a timeline generator in `src/chronicle_mvp_timeline_generator.ts`, a runtime generator core in `src/chronicle_mvp_timeline_generator_core.mjs`, a matching example fixture in `examples/chronicle-mvp-example.json`, and a generated timeline example in `examples/chronicle-mvp-generated-timeline.json`.
 
