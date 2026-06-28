@@ -622,7 +622,20 @@ function renderPositionLinks(positionIds) {
     <div class="projects">
       <strong>Positions</strong>
       <ul>
-        ${positionIds.map((positionId) => `<li><a href="/position/${encodeURIComponent(positionId)}/view">${escapeHtml(positionId)}</a> — <a href="/position/${encodeURIComponent(positionId)}/export">export bundle</a></li>`).join("\n")}
+        ${positionIds.map((positionId) => `<li><a href="/position/${encodeURIComponent(positionId)}/view">${escapeHtml(positionId)}</a></li>`).join("\n")}
+      </ul>
+    </div>
+  `
+}
+
+function renderArtifactLinks(positionIds) {
+  if (positionIds.length === 0) return "<p class=\"empty\">No artifacts found yet.</p>"
+
+  return `
+    <div class="projects">
+      <strong>Artifacts</strong>
+      <ul>
+        ${positionIds.map((positionId) => `<li><a href="/position/${encodeURIComponent(positionId)}/artifact">${escapeHtml(positionId)}</a> — <a href="/position/${encodeURIComponent(positionId)}/artifact/view">view artifact</a></li>`).join("\n")}
       </ul>
     </div>
   `
@@ -661,7 +674,33 @@ function renderPortfolioLinks(portfolioIds) {
     <div class="projects">
       <strong>Portfolios</strong>
       <ul>
-        ${portfolioIds.map((portfolioId) => `<li><a href="/portfolio/${encodeURIComponent(portfolioId)}/view">${escapeHtml(portfolioId)}</a> — <a href="/portfolio/${encodeURIComponent(portfolioId)}/export">export portfolio</a></li>`).join("\n")}
+        ${portfolioIds.map((portfolioId) => `<li><a href="/portfolio/${encodeURIComponent(portfolioId)}/view">${escapeHtml(portfolioId)}</a></li>`).join("\n")}
+      </ul>
+    </div>
+  `
+}
+
+function renderBundleExportLinks(options = {}) {
+  const positionId = options.positionId
+  const items = [
+    { label: "all-history-bundle", href: "/export" },
+    { label: "stored-entries-json", href: "/entries" },
+    { label: "timeline-json", href: "/timeline" },
+    { label: "history-markdown", href: "/chronicle.md" },
+  ]
+
+  if (positionId) {
+    items.push(
+      { label: `${positionId} bundle`, href: `/position/${encodeURIComponent(positionId)}/export` },
+      { label: `${positionId} snapshot`, href: `/position/${encodeURIComponent(positionId)}/snapshot` },
+    )
+  }
+
+  return `
+    <div class="projects">
+      <strong>Bundles / Exports</strong>
+      <ul>
+        ${items.map((item) => `<li><a href="${item.href}">${escapeHtml(item.label)}</a></li>`).join("\n")}
       </ul>
     </div>
   `
@@ -1111,7 +1150,7 @@ function renderScorecardHtml(positionId, summary) {
 </html>`
 }
 
-function renderHtmlView(timeline, options = {}) {
+export function renderHtmlView(timeline, options = {}) {
   const heading = options.heading ?? "Chronicle Local Node History"
   const lead = options.lead ?? "A simple local browser view over persisted Chronicle timeline events."
   const backLink = options.backLink ? `<a href="${options.backLink}">Back to all history</a>` : ""
@@ -1233,10 +1272,6 @@ function renderHtmlView(timeline, options = {}) {
       <h1>${escapeHtml(heading)}</h1>
       <p class="lead">${escapeHtml(lead)}</p>
       <div class="links">
-        <a href="/chronicle.md">View Markdown history</a>
-        <a href="/timeline">View JSON timeline</a>
-        <a href="/entries">View stored entries</a>
-        <a href="/export">Export bundle</a>
         ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/scorecard/view">View Position scorecard</a>` : ""}
         ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/evolution/view">View Position evolution</a>` : ""}
         ${options.positionId ? `<a href="/position/${encodeURIComponent(options.positionId)}/snapshot">Export Position snapshot</a>` : ""}
@@ -1248,13 +1283,12 @@ function renderHtmlView(timeline, options = {}) {
         <strong>Timeline:</strong> ${escapeHtml(timeline.title)}<br />
         <strong>Event count:</strong> ${escapeHtml(timeline.events.length)}
       </div>
-      ${renderProjectLinks(getProjectRefs())}
-      ${renderReleaseLinks(getReleaseIds())}
-      ${renderProfileLinks(getProfileIds())}
+      ${renderReceiptLinks(getReceiptIds())}
       ${renderPositionLinks(getPositionIds())}
+      ${renderArtifactLinks(getPositionIds())}
       ${renderCollectionLinks(getCollectionIds())}
       ${renderPortfolioLinks(getPortfolioIds())}
-      ${renderReceiptLinks(getReceiptIds())}
+      ${renderBundleExportLinks(options)}
       ${eventItems}
     </main>
   </body>

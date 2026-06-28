@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url"
 import { computeArtifactRootV0 } from "../src/chronicle_position_artifact.mjs"
 import { computeCollectionRootV0 } from "../src/chronicle_collection.mjs"
 import { computePortfolioRootV0 } from "../src/chronicle_portfolio.mjs"
-import { createCollection, createPortfolio, createPositionArtifact, createPositionSnapshot, renderArtifactHtml, renderCollectionHtml, renderPortfolioHtml } from "../scripts/run_chronicle_node.mjs"
+import { createCollection, createPortfolio, createPositionArtifact, createPositionSnapshot, renderArtifactHtml, renderCollectionHtml, renderHtmlView, renderPortfolioHtml } from "../scripts/run_chronicle_node.mjs"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -54,6 +54,19 @@ const portfolioEntries = [
     project_refs: ["collection-alpha"],
   },
 ]
+
+const sampleTimeline = {
+  title: "Chronicle Local Node History",
+  events: [
+    {
+      timestamp: "2026-06-01T09:00:00.000Z",
+      display_label: "Portfolio event",
+      relation_type: "created",
+      entry_id: "entry-010",
+      proof_object_refs: [{ proof_object_id: "receipt-010" }],
+    },
+  ],
+}
 
 test("same artifact identity input produces the same artifact_root", () => {
   const input = {
@@ -362,6 +375,42 @@ test("/collections and /collection routes are wired", () => {
   assert.match(source, /if \(request\.method === "GET" && url\.pathname\.startsWith\("\/collection\/"\)\)/)
   assert.match(source, /if \(parts\.length === 3 && parts\[2\] === "export"\) \{\s+return json\(response, 200, \{\s+\.\.\.collection,/s)
   assert.match(source, /if \(parts\.length === 3 && parts\[2\] === "view"\) \{\s+return html\(response, 200, renderCollectionHtml\(collectionId, collection\)\)/s)
+})
+
+test("home page links portfolio to /portfolio/:portfolio_id/view and collection to /collection/:collection_id/view", () => {
+  const source = fs.readFileSync(path.join(repoRoot, "scripts", "run_chronicle_node.mjs"), "utf8")
+  assert.match(source, /href="\/portfolio\/\$\{encodeURIComponent\(portfolioId\)\}\/view"/)
+  assert.match(source, /href="\/collection\/\$\{encodeURIComponent\(collectionId\)\}\/view"/)
+})
+
+test("home page links artifacts to /position/:position_id/artifact and orders sections by current object model", () => {
+  const source = fs.readFileSync(path.join(repoRoot, "scripts", "run_chronicle_node.mjs"), "utf8")
+  assert.match(source, /href="\/position\/\$\{encodeURIComponent\(positionId\)\}\/artifact"/)
+  assert.match(
+    source,
+    /\$\{renderReceiptLinks\(getReceiptIds\(\)\)\}[\s\S]*\$\{renderPositionLinks\(getPositionIds\(\)\)\}[\s\S]*\$\{renderArtifactLinks\(getPositionIds\(\)\)\}[\s\S]*\$\{renderCollectionLinks\(getCollectionIds\(\)\)\}[\s\S]*\$\{renderPortfolioLinks\(getPortfolioIds\(\)\)\}[\s\S]*\$\{renderBundleExportLinks\(options\)\}/,
+  )
+  assert.doesNotMatch(source, /\$\{renderProjectLinks\(getProjectRefs\(\)\)\}/)
+  assert.doesNotMatch(source, /\$\{renderReleaseLinks\(getReleaseIds\(\)\)\}/)
+  assert.doesNotMatch(source, /\$\{renderProfileLinks\(getProfileIds\(\)\)\}/)
+})
+
+test("portfolio view displays portfolio_root", () => {
+  const portfolio = createPortfolio("portfolio-alpha", portfolioEntries)
+  const html = renderPortfolioHtml("portfolio-alpha", portfolio)
+  assert.match(html, new RegExp(portfolio.portfolio_root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+})
+
+test("collection view displays collection_root", () => {
+  const collection = createCollection("position-alpha", collectionEntries)
+  const html = renderCollectionHtml("position-alpha", collection)
+  assert.match(html, new RegExp(collection.collection_root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+})
+
+test("artifact view displays artifact_root", () => {
+  const artifact = createPositionArtifact("position-alpha", baseEntries)
+  const html = renderArtifactHtml("position-alpha", artifact)
+  assert.match(html, new RegExp(artifact.artifact_root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
 })
 
 test("/portfolios and /portfolio routes are wired", () => {
