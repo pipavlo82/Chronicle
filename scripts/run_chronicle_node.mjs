@@ -278,19 +278,26 @@ function createReceiptView(receiptId, entries) {
   }
 }
 
-function createPositionArtifact(positionId, entries) {
-  const scorecard = createPositionSummary(entries)
-  const lineage = createPositionLineage(positionId, entries)
-  const snapshot = createPositionSnapshot(positionId, entries)
+function createPositionArtifactIdentityInput(positionId, entries) {
   const entryRefs = [...entries].sort(compareEntries).map((entry) => entry.entry_id)
-  const receiptIds = [...new Set(entries.map((entry) => getReceiptId(entry)).filter((value) => typeof value === "string" && value.trim()))].sort((a, b) => a.localeCompare(b))
-  const artifactRoot = computeArtifactRootV0({
+  const receiptRefs = [...new Set(entries.map((entry) => getReceiptId(entry)).filter((value) => typeof value === "string" && value.trim()))].sort((a, b) => a.localeCompare(b))
+
+  return {
     artifact_version: POSITION_ARTIFACT_VERSION_V0,
     artifact_scope: "position",
     position_id: positionId,
     entry_refs: entryRefs,
-    receipt_refs: receiptIds,
-  })
+    receipt_refs: receiptRefs,
+  }
+}
+
+function createPositionArtifact(positionId, entries) {
+  const scorecard = createPositionSummary(entries)
+  const lineage = createPositionLineage(positionId, entries)
+  const snapshot = createPositionSnapshot(positionId, entries)
+  const artifactIdentityInput = createPositionArtifactIdentityInput(positionId, entries)
+  const receiptIds = artifactIdentityInput.receipt_refs
+  const artifactRoot = computeArtifactRootV0(artifactIdentityInput)
 
   return {
     artifact_version: POSITION_ARTIFACT_VERSION_V0,
@@ -405,7 +412,9 @@ function createPositionEvolution(entries) {
 function createPositionSnapshot(positionId, entries) {
   const summary = createPositionSummary(entries)
   const evolution = createPositionEvolution(entries)
-  const entryRefs = [...entries].sort(compareEntries).map((entry) => entry.entry_id)
+  const artifactIdentityInput = createPositionArtifactIdentityInput(positionId, entries)
+  const artifactRoot = computeArtifactRootV0(artifactIdentityInput)
+  const entryRefs = artifactIdentityInput.entry_refs
   const projectRefs = [...new Set(entries.flatMap((entry) => Array.isArray(entry.project_refs) ? entry.project_refs : []))].sort((a, b) => a.localeCompare(b))
   const releaseRefs = [...new Set(entries.map((entry) => getReleaseId(entry)))].sort((a, b) => a.localeCompare(b))
   const proofRefs = []
@@ -421,6 +430,8 @@ function createPositionSnapshot(positionId, entries) {
   }
 
   return {
+    artifact_version: POSITION_ARTIFACT_VERSION_V0,
+    artifact_root: artifactRoot,
     position_id: positionId,
     generated_at: new Date().toISOString(),
     scorecard: summary,
@@ -581,6 +592,9 @@ export function renderArtifactHtml(positionId, artifact) {
       .metric { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
       .metric strong { display: block; font-size: 0.9rem; color: #6b7280; margin-bottom: 4px; }
       .metric span { font-size: 1.1rem; font-weight: 700; }
+      .artifact-root-block { margin-top: 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
+      .artifact-root-block strong { display: block; font-size: 0.9rem; color: #6b7280; margin-bottom: 8px; }
+      .artifact-root-block code { display: block; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; font-size: 0.95rem; line-height: 1.5; padding: 10px 12px; }
     </style>
   </head>
   <body>
@@ -599,7 +613,6 @@ export function renderArtifactHtml(positionId, artifact) {
         <div class="metric-grid">
           <div class="metric"><strong>position_id</strong><span>${escapeHtml(artifact.position_id)}</span></div>
           <div class="metric"><strong>artifact_version</strong><span>${escapeHtml(artifact.artifact_version)}</span></div>
-          <div class="metric"><strong>artifact_root</strong><span><code>${escapeHtml(artifact.artifact_root)}</code></span></div>
           <div class="metric"><strong>receipt_count</strong><span>${escapeHtml(artifact.receipt_count)}</span></div>
           <div class="metric"><strong>entry_count</strong><span>${escapeHtml(artifact.entry_count)}</span></div>
           <div class="metric"><strong>project_count</strong><span>${escapeHtml(artifact.project_count)}</span></div>
@@ -607,6 +620,10 @@ export function renderArtifactHtml(positionId, artifact) {
           <div class="metric"><strong>first_seen</strong><span>${escapeHtml(artifact.first_seen ?? "n/a")}</span></div>
           <div class="metric"><strong>latest_seen</strong><span>${escapeHtml(artifact.latest_seen ?? "n/a")}</span></div>
           <div class="metric"><strong>active_days</strong><span>${escapeHtml(artifact.active_days)}</span></div>
+        </div>
+        <div class="artifact-root-block">
+          <strong>artifact_root</strong>
+          <code>${escapeHtml(artifact.artifact_root)}</code>
         </div>
       </div>
       <table>
@@ -1083,7 +1100,7 @@ function createEntriesFromReceiptTimelineCapsule(capsule) {
 
 loadStore()
 
-export { createPositionArtifact }
+export { createPositionArtifact, createPositionSnapshot }
 
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? `localhost:${PORT}`}`)
