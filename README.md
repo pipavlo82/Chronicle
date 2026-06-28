@@ -320,6 +320,16 @@ Position lineage examples:
 - `http://localhost:8080/position/position-chronicle-core-v0.1.0/lineage`
 - `http://localhost:8080/position/position-chronicle-core-v0.1.0/lineage/view`
 
+Artifact Collection examples:
+
+- `http://localhost:8080/collections`
+- `http://localhost:8080/collection/project-chronicle-core`
+- `http://localhost:8080/collection/project-chronicle-core/export`
+- `http://localhost:8080/collection/project-chronicle-core/view`
+
+Receipt → `receipt_root`. Artifact → `artifact_root`. Collection → `collection_root`.
+Collection recomputes history. It does not score, certify, verify, or sign artifacts.
+
 ## View ReceiptOS receipts
 
 Examples:
