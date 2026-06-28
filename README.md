@@ -1,4 +1,4 @@
-﻿# Chronicle
+# Chronicle
 
 A research project exploring receipts as a new digital asset class.
 
@@ -9,15 +9,15 @@ A research project exploring receipts as a new digital asset class.
 **ReceiptOS proves what happened.**  
 **Chronicle explains how proven events become history.**
 
-![Chronicle ecosystem map](docs/images/chronicle-ecosystem-map.jpg)
+![Chronicle MVP flow](docs/images/chronicle-mvp-flow.png)
 
 MVP flow:
 
 ReceiptOS Proof Object  
-тЖТ Chronicle Entry  
-тЖТ Chronicle Graph  
-тЖТ Chronicle Timeline  
-тЖТ Human-readable Output
+→ Chronicle Entry  
+→ Chronicle Graph  
+→ Chronicle Timeline  
+→ Human-readable Output
 
 Chronicle does not replace ReceiptOS verification.
 Chronicle does not modify proof objects.
@@ -109,10 +109,10 @@ Chronicle explores whether that verified history can become a durable asset clas
 ## Chronicle MVP End-to-End Flow
 
 ReceiptOS Proof Object  
-тЖТ Chronicle Entry  
-тЖТ Chronicle Graph  
-тЖТ Chronicle Timeline  
-тЖТ Human-readable Output
+→ Chronicle Entry  
+→ Chronicle Graph  
+→ Chronicle Timeline  
+→ Human-readable Output
 
 The current Chronicle MVP can now be demonstrated end to end using:
 
@@ -327,8 +327,15 @@ Artifact Collection examples:
 - `http://localhost:8080/collection/project-chronicle-core/export`
 - `http://localhost:8080/collection/project-chronicle-core/view`
 
-Receipt тЖТ `receipt_root`. Artifact тЖТ `artifact_root`. Collection тЖТ `collection_root`.
-Collection recomputes history. It does not score, certify, verify, or sign artifacts.
+Chronicle Portfolio examples:
+
+- `http://localhost:8080/portfolios`
+- `http://localhost:8080/portfolio/position-chronicle-core-v0.1.0`
+- `http://localhost:8080/portfolio/position-chronicle-core-v0.1.0/export`
+- `http://localhost:8080/portfolio/position-chronicle-core-v0.1.0/view`
+
+Receipt → `receipt_root`. Artifact → `artifact_root`. Collection → `collection_root`. Portfolio → `portfolio_root`.
+Portfolio recomputes a portable body of Chronicle history. It does not score, certify, verify, sign, or create ownership.
 
 ## View ReceiptOS receipts
 
@@ -363,9 +370,9 @@ Delete `data/chronicle-local-store.json` to clear local state.
 The first Chronicle implementation target is intentionally small:
 
 ReceiptOS Proof Object  
-тЖТ Chronicle Entry  
-тЖТ Chronicle Graph  
-тЖТ Chronicle Timeline
+→ Chronicle Entry  
+→ Chronicle Graph  
+→ Chronicle Timeline
 
 The repository now includes a minimal implementation-neutral MVP data model in `src/chronicle_mvp_data_model.ts`, a timeline generator in `src/chronicle_mvp_timeline_generator.ts`, a runtime generator core in `src/chronicle_mvp_timeline_generator_core.mjs`, a matching example fixture in `examples/chronicle-mvp-example.json`, and a generated timeline example in `examples/chronicle-mvp-generated-timeline.json`.
 
