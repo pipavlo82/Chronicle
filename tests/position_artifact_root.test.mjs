@@ -4,7 +4,7 @@ import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { computeArtifactRootV0 } from "../src/chronicle_position_artifact.mjs"
-import { createPositionArtifact, renderArtifactHtml } from "../scripts/run_chronicle_node.mjs"
+import { createPositionArtifact, createPositionSnapshot, renderArtifactHtml } from "../scripts/run_chronicle_node.mjs"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -118,19 +118,47 @@ test("artifact_root is present in position artifact output", () => {
   assert.equal(artifact.artifact_version, "chronicle.position_artifact.v0")
 })
 
-test("artifact view displays artifact_root", () => {
+test("artifact view displays full artifact_root in a wrapping block", () => {
   const artifact = createPositionArtifact("position-alpha", baseEntries)
   const html = renderArtifactHtml("position-alpha", artifact)
   assert.match(html, new RegExp(artifact.artifact_root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+  assert.match(html, /artifact-root-block/)
+  assert.doesNotMatch(html, /<div class="metric"><strong>artifact_root<\/strong>/)
+  assert.match(html, /overflow-wrap: anywhere;/)
+  assert.match(html, /word-break: break-word;/)
 })
 
-test("/position/:id/artifact route returns artifact output with artifact_root", () => {
+test("snapshot output includes artifact_root", () => {
+  const snapshot = createPositionSnapshot("position-alpha", baseEntries)
+  assert.equal(snapshot.artifact_version, "chronicle.position_artifact.v0")
+  assert.match(snapshot.artifact_root, /^sha256:[0-9a-f]{64}$/)
+})
+
+test("artifact_root remains stable across repeated artifact and snapshot generation", () => {
+  const artifactA = createPositionArtifact("position-alpha", baseEntries)
+  const artifactB = createPositionArtifact("position-alpha", baseEntries)
+  const snapshotA = createPositionSnapshot("position-alpha", baseEntries)
+  const snapshotB = createPositionSnapshot("position-alpha", baseEntries)
+
+  assert.equal(artifactA.artifact_root, artifactB.artifact_root)
+  assert.equal(snapshotA.artifact_root, snapshotB.artifact_root)
+  assert.equal(artifactA.artifact_root, snapshotA.artifact_root)
+  assert.equal(artifactB.artifact_root, snapshotB.artifact_root)
+})
+
+test("/position/:id/artifact and /position/:id/snapshot routes return outputs with artifact_root", () => {
   const source = fs.readFileSync(path.join(repoRoot, "scripts", "run_chronicle_node.mjs"), "utf8")
   assert.match(
     source,
     /if \(parts\.length === 3 && parts\[2\] === "artifact"\) \{\s+return json\(response, 200, createPositionArtifact\(positionId, positionEntries\)\)/s,
   )
+  assert.match(
+    source,
+    /if \(parts\.length === 3 && parts\[2\] === "snapshot"\) \{\s+return json\(response, 200, createPositionSnapshot\(positionId, positionEntries\)\)/s,
+  )
 
   const artifact = createPositionArtifact("position-alpha", baseEntries)
+  const snapshot = createPositionSnapshot("position-alpha", baseEntries)
   assert.match(artifact.artifact_root, /^sha256:[0-9a-f]{64}$/)
+  assert.match(snapshot.artifact_root, /^sha256:[0-9a-f]{64}$/)
 })
