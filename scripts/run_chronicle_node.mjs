@@ -4,6 +4,7 @@ import http from "node:http"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { createChronicleTimeline } from "../src/chronicle_mvp_timeline_generator_core.mjs"
 import { POSITION_ARTIFACT_VERSION_V0, computeArtifactRootV0 } from "../src/chronicle_position_artifact.mjs"
+import { COLLECTION_VERSION_V0, computeCollectionRootV0 } from "../src/chronicle_collection.mjs"
 
 const PORT = 8080
 const __filename = fileURLToPath(import.meta.url)
@@ -210,6 +211,10 @@ function getPositionIds(entries = entryStore) {
   return [...new Set(entries.map((entry) => getPositionId(entry)))].sort((a, b) => a.localeCompare(b))
 }
 
+function getCollectionIds(entries = entryStore) {
+  return [...new Set(entries.flatMap((entry) => Array.isArray(entry.project_refs) ? entry.project_refs : []))].sort((a, b) => a.localeCompare(b))
+}
+
 function getReceiptId(entry) {
   const proofRef = Array.isArray(entry?.proof_object_refs) ? entry.proof_object_refs[0] : undefined
   return typeof proofRef?.proof_object_id === "string" && proofRef.proof_object_id.trim()
@@ -235,6 +240,10 @@ function getEntriesForProfile(profileId) {
 
 function getEntriesForPosition(positionId) {
   return entryStore.filter((entry) => getPositionId(entry) === positionId)
+}
+
+function getEntriesForCollection(collectionId) {
+  return entryStore.filter((entry) => Array.isArray(entry.project_refs) && entry.project_refs.includes(collectionId))
 }
 
 function getEntriesForReceipt(receiptId) {
@@ -409,6 +418,35 @@ function createPositionEvolution(entries) {
   }
 }
 
+function createCollectionIdentityInput(collectionId, artifactRefs) {
+  return {
+    collection_version: COLLECTION_VERSION_V0,
+    collection_id: collectionId,
+    artifact_refs: [...artifactRefs].sort((a, b) => a.localeCompare(b)),
+  }
+}
+
+function createCollection(collectionId, entries) {
+  const positionIds = getPositionIds(entries)
+  const artifactRefs = positionIds.map((positionId) => `/position/${encodeURIComponent(positionId)}/artifact`).sort((a, b) => a.localeCompare(b))
+  const identityInput = createCollectionIdentityInput(collectionId, artifactRefs)
+  const collectionRoot = computeCollectionRootV0(identityInput)
+  const timestamps = entries
+    .map((entry) => entry.created_at)
+    .filter((value) => typeof value === "string")
+    .sort((a, b) => a.localeCompare(b))
+
+  return {
+    collection_id: collectionId,
+    collection_version: COLLECTION_VERSION_V0,
+    collection_root: collectionRoot,
+    artifact_refs: identityInput.artifact_refs,
+    artifact_count: identityInput.artifact_refs.length,
+    first_seen: timestamps[0] ?? null,
+    latest_seen: timestamps[timestamps.length - 1] ?? null,
+  }
+}
+
 function createPositionSnapshot(positionId, entries) {
   const summary = createPositionSummary(entries)
   const evolution = createPositionEvolution(entries)
@@ -561,6 +599,84 @@ function renderReceiptLinks(receiptIds) {
       </ul>
     </div>
   `
+}
+
+function renderCollectionLinks(collectionIds) {
+  if (collectionIds.length === 0) return "<p class=\"empty\">No collections found yet.</p>"
+
+  return `
+    <div class="projects">
+      <strong>Collections</strong>
+      <ul>
+        ${collectionIds.map((collectionId) => `<li><a href="/collection/${encodeURIComponent(collectionId)}/view">${escapeHtml(collectionId)}</a> — <a href="/collection/${encodeURIComponent(collectionId)}/export">export collection</a></li>`).join("\n")}
+      </ul>
+    </div>
+  `
+}
+
+function renderCollectionHtml(collectionId, collection) {
+  const artifactRefs = collection.artifact_refs.length === 0
+    ? "<em>none</em>"
+    : collection.artifact_refs.map((artifactRef) => `<div><code>${escapeHtml(artifactRef)}</code></div>`).join("")
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chronicle Artifact Collection: ${escapeHtml(collectionId)}</title>
+    <style>
+      body { margin: 0; font-family: Inter, Segoe UI, Arial, sans-serif; background: #f7f7f9; color: #1f2937; }
+      main { max-width: 1000px; margin: 0 auto; padding: 32px 20px 48px; }
+      h1 { margin: 0 0 8px; font-size: 2rem; }
+      p { color: #6b7280; }
+      .links a { color: #111827; text-decoration: none; margin-right: 16px; }
+      .card, table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #d1d5db; border-radius: 12px; overflow: hidden; margin-top: 20px; }
+      .card { padding: 16px 18px; box-sizing: border-box; }
+      th, td { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
+      th { width: 240px; background: #f9fafb; }
+      tr:last-child th, tr:last-child td { border-bottom: none; }
+      code { background: #eef2f7; padding: 1px 5px; border-radius: 6px; }
+      .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+      .metric { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
+      .metric strong { display: block; font-size: 0.9rem; color: #6b7280; margin-bottom: 4px; }
+      .metric span { font-size: 1.1rem; font-weight: 700; }
+      .root-block { margin-top: 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
+      .root-block strong { display: block; font-size: 0.9rem; color: #6b7280; margin-bottom: 8px; }
+      .root-block code { display: block; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; font-size: 0.95rem; line-height: 1.5; padding: 10px 12px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Chronicle Artifact Collection: ${escapeHtml(collectionId)}</h1>
+      <p>Receipt → receipt_root. Artifact → artifact_root. Collection → collection_root. Collection recomputes history. It does not score, certify, verify, or sign artifacts.</p>
+      <div class="links">
+        <a href="/collections">View collections</a>
+        <a href="/collection/${encodeURIComponent(collectionId)}">View collection JSON</a>
+        <a href="/collection/${encodeURIComponent(collectionId)}/export">Export collection</a>
+        <a href="/view">Back to all history</a>
+      </div>
+      <div class="card">
+        <div class="metric-grid">
+          <div class="metric"><strong>collection_id</strong><span>${escapeHtml(collection.collection_id)}</span></div>
+          <div class="metric"><strong>collection_version</strong><span>${escapeHtml(collection.collection_version)}</span></div>
+          <div class="metric"><strong>artifact_count</strong><span>${escapeHtml(collection.artifact_count)}</span></div>
+          <div class="metric"><strong>first_seen</strong><span>${escapeHtml(collection.first_seen ?? "n/a")}</span></div>
+          <div class="metric"><strong>latest_seen</strong><span>${escapeHtml(collection.latest_seen ?? "n/a")}</span></div>
+        </div>
+        <div class="root-block">
+          <strong>collection_root</strong>
+          <code>${escapeHtml(collection.collection_root)}</code>
+        </div>
+      </div>
+      <table>
+        <tbody>
+          <tr><th><code>artifact_refs</code></th><td>${artifactRefs}</td></tr>
+        </tbody>
+      </table>
+    </main>
+  </body>
+</html>`
 }
 
 export function renderArtifactHtml(positionId, artifact) {
@@ -1017,6 +1133,7 @@ function renderHtmlView(timeline, options = {}) {
       ${renderReleaseLinks(getReleaseIds())}
       ${renderProfileLinks(getProfileIds())}
       ${renderPositionLinks(getPositionIds())}
+      ${renderCollectionLinks(getCollectionIds())}
       ${renderReceiptLinks(getReceiptIds())}
       ${eventItems}
     </main>
@@ -1100,7 +1217,7 @@ function createEntriesFromReceiptTimelineCapsule(capsule) {
 
 loadStore()
 
-export { createPositionArtifact, createPositionSnapshot }
+export { createPositionArtifact, createPositionSnapshot, createCollection }
 
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? `localhost:${PORT}`}`)
@@ -1311,6 +1428,15 @@ const server = http.createServer(async (request, response) => {
       })
     }
 
+    if (request.method === "GET" && url.pathname === "/collections") {
+      const collections = getCollectionIds().map((collectionId) => createCollection(collectionId, getEntriesForCollection(collectionId)))
+      return json(response, 200, {
+        ok: true,
+        count: collections.length,
+        collections,
+      })
+    }
+
     if (request.method === "GET" && url.pathname === "/receipts") {
       const receipts = getReceiptIds()
       return json(response, 200, {
@@ -1438,6 +1564,28 @@ const server = http.createServer(async (request, response) => {
       }
     }
 
+    if (request.method === "GET" && url.pathname.startsWith("/collection/")) {
+      const parts = url.pathname.split("/").filter(Boolean)
+      const collectionId = parts[1] ? decodeURIComponent(parts[1]) : ""
+      const collectionEntries = getEntriesForCollection(collectionId)
+      const collection = createCollection(collectionId, collectionEntries)
+
+      if (parts.length === 2) {
+        return json(response, 200, collection)
+      }
+
+      if (parts.length === 3 && parts[2] === "export") {
+        return json(response, 200, {
+          ...collection,
+          entries: collectionEntries,
+        })
+      }
+
+      if (parts.length === 3 && parts[2] === "view") {
+        return html(response, 200, renderCollectionHtml(collectionId, collection))
+      }
+    }
+
     if (request.method === "GET" && url.pathname.startsWith("/position/")) {
       const parts = url.pathname.split("/").filter(Boolean)
       const positionId = parts[1] ? decodeURIComponent(parts[1]) : ""
@@ -1549,6 +1697,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   server.listen(PORT, () => {
     console.log(`Chronicle local node listening on http://localhost:${PORT}`)
     console.log(`Persistent store: ${STORE_PATH}`)
-    console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /releases, GET /profiles, GET /positions, GET /receipts, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /release/:release_id, GET /release/:release_id/export, GET /profile/:profile_id, GET /profile/:profile_id/export, GET /receipt/:receipt_id, GET /position/:position_id, GET /position/:position_id/scorecard, GET /position/:position_id/evolution, GET /position/:position_id/snapshot, GET /position/:position_id/lineage, GET /position/:position_id/artifact, GET /position/:position_id/export, GET /timeline, GET /chronicle.md, GET /view")
+    console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /releases, GET /profiles, GET /positions, GET /collections, GET /receipts, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /release/:release_id, GET /release/:release_id/export, GET /profile/:profile_id, GET /profile/:profile_id/export, GET /receipt/:receipt_id, GET /collection/:collection_id, GET /collection/:collection_id/export, GET /collection/:collection_id/view, GET /position/:position_id, GET /position/:position_id/scorecard, GET /position/:position_id/evolution, GET /position/:position_id/snapshot, GET /position/:position_id/lineage, GET /position/:position_id/artifact, GET /position/:position_id/export, GET /timeline, GET /chronicle.md, GET /view")
   })
 }
