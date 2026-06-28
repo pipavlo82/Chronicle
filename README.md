@@ -327,8 +327,15 @@ Artifact Collection examples:
 - `http://localhost:8080/collection/project-chronicle-core/export`
 - `http://localhost:8080/collection/project-chronicle-core/view`
 
-Receipt → `receipt_root`. Artifact → `artifact_root`. Collection → `collection_root`.
-Collection recomputes history. It does not score, certify, verify, or sign artifacts.
+Chronicle Portfolio examples:
+
+- `http://localhost:8080/portfolios`
+- `http://localhost:8080/portfolio/position-chronicle-core-v0.1.0`
+- `http://localhost:8080/portfolio/position-chronicle-core-v0.1.0/export`
+- `http://localhost:8080/portfolio/position-chronicle-core-v0.1.0/view`
+
+Receipt → `receipt_root`. Artifact → `artifact_root`. Collection → `collection_root`. Portfolio → `portfolio_root`.
+Portfolio recomputes a portable body of Chronicle history. It does not score, certify, verify, sign, or create ownership.
 
 ## View ReceiptOS receipts
 

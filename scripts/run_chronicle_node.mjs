@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 import { createChronicleTimeline } from "../src/chronicle_mvp_timeline_generator_core.mjs"
 import { POSITION_ARTIFACT_VERSION_V0, computeArtifactRootV0 } from "../src/chronicle_position_artifact.mjs"
 import { COLLECTION_VERSION_V0, computeCollectionRootV0 } from "../src/chronicle_collection.mjs"
+import { PORTFOLIO_VERSION_V0, computePortfolioRootV0 } from "../src/chronicle_portfolio.mjs"
 
 const PORT = 8080
 const __filename = fileURLToPath(import.meta.url)
@@ -215,6 +216,10 @@ function getCollectionIds(entries = entryStore) {
   return [...new Set(entries.flatMap((entry) => Array.isArray(entry.project_refs) ? entry.project_refs : []))].sort((a, b) => a.localeCompare(b))
 }
 
+function getPortfolioIds(entries = entryStore) {
+  return [...new Set(entries.map((entry) => getPositionId(entry)))].sort((a, b) => a.localeCompare(b))
+}
+
 function getReceiptId(entry) {
   const proofRef = Array.isArray(entry?.proof_object_refs) ? entry.proof_object_refs[0] : undefined
   return typeof proofRef?.proof_object_id === "string" && proofRef.proof_object_id.trim()
@@ -244,6 +249,10 @@ function getEntriesForPosition(positionId) {
 
 function getEntriesForCollection(collectionId) {
   return entryStore.filter((entry) => Array.isArray(entry.project_refs) && entry.project_refs.includes(collectionId))
+}
+
+function getEntriesForPortfolio(portfolioId) {
+  return entryStore.filter((entry) => getPositionId(entry) === portfolioId)
 }
 
 function getEntriesForReceipt(receiptId) {
@@ -447,6 +456,37 @@ function createCollection(collectionId, entries) {
   }
 }
 
+function createPortfolioIdentityInput(portfolioId, collectionRefs) {
+  return {
+    portfolio_version: PORTFOLIO_VERSION_V0,
+    portfolio_id: portfolioId,
+    collection_refs: [...collectionRefs].sort((a, b) => a.localeCompare(b)),
+  }
+}
+
+function createPortfolio(portfolioId, entries) {
+  const collectionIds = getCollectionIds(entries)
+  const collectionRefs = collectionIds.map((collectionId) => `/collection/${encodeURIComponent(collectionId)}`).sort((a, b) => a.localeCompare(b))
+  const identityInput = createPortfolioIdentityInput(portfolioId, collectionRefs)
+  const portfolioRoot = computePortfolioRootV0(identityInput)
+  const timestamps = entries
+    .map((entry) => entry.created_at)
+    .filter((value) => typeof value === "string")
+    .sort((a, b) => a.localeCompare(b))
+  const artifactCount = collectionIds.reduce((count, collectionId) => count + createCollection(collectionId, getEntriesForCollection(collectionId)).artifact_count, 0)
+
+  return {
+    portfolio_id: portfolioId,
+    portfolio_version: PORTFOLIO_VERSION_V0,
+    portfolio_root: portfolioRoot,
+    collection_refs: identityInput.collection_refs,
+    collection_count: identityInput.collection_refs.length,
+    artifact_count: artifactCount,
+    first_seen: timestamps[0] ?? null,
+    latest_seen: timestamps[timestamps.length - 1] ?? null,
+  }
+}
+
 function createPositionSnapshot(positionId, entries) {
   const summary = createPositionSummary(entries)
   const evolution = createPositionEvolution(entries)
@@ -614,6 +654,19 @@ function renderCollectionLinks(collectionIds) {
   `
 }
 
+function renderPortfolioLinks(portfolioIds) {
+  if (portfolioIds.length === 0) return "<p class=\"empty\">No portfolios found yet.</p>"
+
+  return `
+    <div class="projects">
+      <strong>Portfolios</strong>
+      <ul>
+        ${portfolioIds.map((portfolioId) => `<li><a href="/portfolio/${encodeURIComponent(portfolioId)}/view">${escapeHtml(portfolioId)}</a> — <a href="/portfolio/${encodeURIComponent(portfolioId)}/export">export portfolio</a></li>`).join("\n")}
+      </ul>
+    </div>
+  `
+}
+
 export function renderCollectionHtml(collectionId, collection) {
   const artifactRefs = collection.artifact_refs.length === 0
     ? "<em>none</em>"
@@ -672,6 +725,72 @@ export function renderCollectionHtml(collectionId, collection) {
       <table>
         <tbody>
           <tr><th><code>artifact_refs</code></th><td>${artifactRefs}</td></tr>
+        </tbody>
+      </table>
+    </main>
+  </body>
+</html>`
+}
+
+export function renderPortfolioHtml(portfolioId, portfolio) {
+  const collectionRefs = portfolio.collection_refs.length === 0
+    ? "<em>none</em>"
+    : portfolio.collection_refs.map((collectionRef) => `<div><code>${escapeHtml(collectionRef)}</code></div>`).join("")
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chronicle Portfolio: ${escapeHtml(portfolioId)}</title>
+    <style>
+      body { margin: 0; font-family: Inter, Segoe UI, Arial, sans-serif; background: #f7f7f9; color: #1f2937; }
+      main { max-width: 1000px; margin: 0 auto; padding: 32px 20px 48px; }
+      h1 { margin: 0 0 8px; font-size: 2rem; }
+      p { color: #6b7280; }
+      .links a { color: #111827; text-decoration: none; margin-right: 16px; }
+      .card, table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #d1d5db; border-radius: 12px; overflow: hidden; margin-top: 20px; }
+      .card { padding: 16px 18px; box-sizing: border-box; }
+      th, td { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
+      th { width: 240px; background: #f9fafb; }
+      tr:last-child th, tr:last-child td { border-bottom: none; }
+      code { background: #eef2f7; padding: 1px 5px; border-radius: 6px; }
+      .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+      .metric { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
+      .metric strong { display: block; font-size: 0.9rem; color: #6b7280; margin-bottom: 4px; }
+      .metric span { font-size: 1.1rem; font-weight: 700; }
+      .root-block { margin-top: 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; }
+      .root-block strong { display: block; font-size: 0.9rem; color: #6b7280; margin-bottom: 8px; }
+      .root-block code { display: block; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; font-size: 0.95rem; line-height: 1.5; padding: 10px 12px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Chronicle Portfolio: ${escapeHtml(portfolioId)}</h1>
+      <p>Receipt → receipt_root. Artifact → artifact_root. Collection → collection_root. Portfolio → portfolio_root. A Portfolio recomputes a portable body of Chronicle history. It does not score, certify, verify, sign, or create ownership.</p>
+      <div class="links">
+        <a href="/portfolios">View portfolios</a>
+        <a href="/portfolio/${encodeURIComponent(portfolioId)}">View portfolio JSON</a>
+        <a href="/portfolio/${encodeURIComponent(portfolioId)}/export">Export portfolio</a>
+        <a href="/view">Back to all history</a>
+      </div>
+      <div class="card">
+        <div class="metric-grid">
+          <div class="metric"><strong>portfolio_id</strong><span>${escapeHtml(portfolio.portfolio_id)}</span></div>
+          <div class="metric"><strong>portfolio_version</strong><span>${escapeHtml(portfolio.portfolio_version)}</span></div>
+          <div class="metric"><strong>collection_count</strong><span>${escapeHtml(portfolio.collection_count)}</span></div>
+          <div class="metric"><strong>artifact_count</strong><span>${escapeHtml(portfolio.artifact_count)}</span></div>
+          <div class="metric"><strong>first_seen</strong><span>${escapeHtml(portfolio.first_seen ?? "n/a")}</span></div>
+          <div class="metric"><strong>latest_seen</strong><span>${escapeHtml(portfolio.latest_seen ?? "n/a")}</span></div>
+        </div>
+        <div class="root-block">
+          <strong>portfolio_root</strong>
+          <code>${escapeHtml(portfolio.portfolio_root)}</code>
+        </div>
+      </div>
+      <table>
+        <tbody>
+          <tr><th><code>collection_refs</code></th><td>${collectionRefs}</td></tr>
         </tbody>
       </table>
     </main>
@@ -1134,6 +1253,7 @@ function renderHtmlView(timeline, options = {}) {
       ${renderProfileLinks(getProfileIds())}
       ${renderPositionLinks(getPositionIds())}
       ${renderCollectionLinks(getCollectionIds())}
+      ${renderPortfolioLinks(getPortfolioIds())}
       ${renderReceiptLinks(getReceiptIds())}
       ${eventItems}
     </main>
@@ -1217,7 +1337,7 @@ function createEntriesFromReceiptTimelineCapsule(capsule) {
 
 loadStore()
 
-export { createPositionArtifact, createPositionSnapshot, createCollection }
+export { createPositionArtifact, createPositionSnapshot, createCollection, createPortfolio }
 
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? `localhost:${PORT}`}`)
@@ -1437,6 +1557,15 @@ const server = http.createServer(async (request, response) => {
       })
     }
 
+    if (request.method === "GET" && url.pathname === "/portfolios") {
+      const portfolios = getPortfolioIds().map((portfolioId) => createPortfolio(portfolioId, getEntriesForPortfolio(portfolioId)))
+      return json(response, 200, {
+        ok: true,
+        count: portfolios.length,
+        portfolios,
+      })
+    }
+
     if (request.method === "GET" && url.pathname === "/receipts") {
       const receipts = getReceiptIds()
       return json(response, 200, {
@@ -1561,6 +1690,28 @@ const server = http.createServer(async (request, response) => {
 
       if (parts.length === 3 && parts[2] === "view") {
         return html(response, 200, renderReceiptHtml(receipt))
+      }
+    }
+
+    if (request.method === "GET" && url.pathname.startsWith("/portfolio/")) {
+      const parts = url.pathname.split("/").filter(Boolean)
+      const portfolioId = parts[1] ? decodeURIComponent(parts[1]) : ""
+      const portfolioEntries = getEntriesForPortfolio(portfolioId)
+      const portfolio = createPortfolio(portfolioId, portfolioEntries)
+
+      if (parts.length === 2) {
+        return json(response, 200, portfolio)
+      }
+
+      if (parts.length === 3 && parts[2] === "export") {
+        return json(response, 200, {
+          ...portfolio,
+          entries: portfolioEntries,
+        })
+      }
+
+      if (parts.length === 3 && parts[2] === "view") {
+        return html(response, 200, renderPortfolioHtml(portfolioId, portfolio))
       }
     }
 
@@ -1697,6 +1848,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   server.listen(PORT, () => {
     console.log(`Chronicle local node listening on http://localhost:${PORT}`)
     console.log(`Persistent store: ${STORE_PATH}`)
-    console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /releases, GET /profiles, GET /positions, GET /collections, GET /receipts, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /release/:release_id, GET /release/:release_id/export, GET /profile/:profile_id, GET /profile/:profile_id/export, GET /receipt/:receipt_id, GET /collection/:collection_id, GET /collection/:collection_id/export, GET /collection/:collection_id/view, GET /position/:position_id, GET /position/:position_id/scorecard, GET /position/:position_id/evolution, GET /position/:position_id/snapshot, GET /position/:position_id/lineage, GET /position/:position_id/artifact, GET /position/:position_id/export, GET /timeline, GET /chronicle.md, GET /view")
+    console.log("Endpoints: GET /health, POST /entries, POST /import/receipt, POST /import/receipt-timeline, POST /import/bundle, GET /entries, GET /projects, GET /releases, GET /profiles, GET /positions, GET /collections, GET /portfolios, GET /receipts, GET /export, GET /project/:project_ref, GET /project/:project_ref/export, GET /release/:release_id, GET /release/:release_id/export, GET /profile/:profile_id, GET /profile/:profile_id/export, GET /receipt/:receipt_id, GET /portfolio/:portfolio_id, GET /portfolio/:portfolio_id/export, GET /portfolio/:portfolio_id/view, GET /collection/:collection_id, GET /collection/:collection_id/export, GET /collection/:collection_id/view, GET /position/:position_id, GET /position/:position_id/scorecard, GET /position/:position_id/evolution, GET /position/:position_id/snapshot, GET /position/:position_id/lineage, GET /position/:position_id/artifact, GET /position/:position_id/export, GET /timeline, GET /chronicle.md, GET /view")
   })
 }
