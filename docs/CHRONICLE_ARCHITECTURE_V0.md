@@ -222,6 +222,50 @@ A Chronicle can expand by:
 
 The Chronicle therefore becomes a durable history object while each underlying proof unit remains immutable.
 
+### Current Implemented Identity Stack
+
+Chronicle's current implementation already includes a recomputable identity stack above ReceiptOS proof objects.
+
+The current implemented object stack is:
+
+- Position *(no root yet)*
+- Artifact (`artifact_root`)
+- Collection (`collection_root`)
+- Portfolio (`portfolio_root`)
+
+These roots are part of the current Chronicle object model, not only future architecture direction.
+
+### Root properties
+
+The currently implemented Chronicle roots are:
+
+- canonical
+- recomputable
+- reference-based
+- overlay-independent
+
+This means the current root-bearing layers derive identity from stable lower-layer references rather than from presentation output or runtime-only fields.
+
+### Root derivation exclusions
+
+Current Chronicle root derivation excludes:
+
+- render metadata
+- generated timestamps
+- derived overlays
+- view-specific data
+
+Derived views may remain useful for local browsing, summarization, and export, but they do not define Chronicle identity.
+
+### Implementation status note
+
+The current implementation should be read as follows:
+
+- Artifact, Collection, and Portfolio roots are already implemented Chronicle identity layers.
+- Position exists as a meaningful Chronicle object, but does not yet have a canonical root.
+- Additional identity-bearing layers remain future directions unless and until they are explicitly implemented.
+- Scoring, reputation, ownership, NFT logic, and similar downstream semantics remain non-goals for the current architecture.
+
 ## 7. Renderer Model
 
 Chronicle should support multiple renderers over the same underlying Chronicle object model.
@@ -354,6 +398,16 @@ Identity in Chronicle should be:
 A Proof Object may be identity-bearing, identity-referenced, or identity-associated, but identity alone does not prove the work. Proof remains the role of ReceiptOS.
 
 Chronicle’s identity layer is therefore best understood as an indexing, continuity, and stewardship model over verified history.
+
+In the current implementation, that identity model is already partially realized through root-bearing Chronicle objects:
+
+- Artifact (`artifact_root`)
+- Collection (`collection_root`)
+- Portfolio (`portfolio_root`)
+
+These implemented roots should be understood as canonical, recomputable, reference-based identity layers that remain independent of render metadata, generated timestamps, derived overlays, and view-specific data.
+
+Position currently remains part of the Chronicle object model without its own canonical root.
 
 ## 11. Non-Goals
 
