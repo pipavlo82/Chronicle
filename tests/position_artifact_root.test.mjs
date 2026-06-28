@@ -5,7 +5,8 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { computeArtifactRootV0 } from "../src/chronicle_position_artifact.mjs"
 import { computeCollectionRootV0 } from "../src/chronicle_collection.mjs"
-import { createCollection, createPositionArtifact, createPositionSnapshot, renderArtifactHtml, renderCollectionHtml } from "../scripts/run_chronicle_node.mjs"
+import { computePortfolioRootV0 } from "../src/chronicle_portfolio.mjs"
+import { createCollection, createPortfolio, createPositionArtifact, createPositionSnapshot, renderArtifactHtml, renderCollectionHtml, renderPortfolioHtml } from "../scripts/run_chronicle_node.mjs"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -40,6 +41,18 @@ const baseEntries = [
 const collectionEntries = [
   ...baseEntries,
   makeEntry({ entryId: "entry-003", createdAt: "2026-06-03T12:00:00.000Z", positionId: "position-beta", receiptId: "receipt-003" }),
+]
+
+const portfolioEntries = [
+  makeEntry({ entryId: "entry-010", createdAt: "2026-06-01T09:00:00.000Z", positionId: "portfolio-alpha", receiptId: "receipt-010" }),
+  {
+    ...makeEntry({ entryId: "entry-011", createdAt: "2026-06-02T09:00:00.000Z", positionId: "portfolio-alpha", receiptId: "receipt-011" }),
+    project_refs: ["collection-beta"],
+  },
+  {
+    ...makeEntry({ entryId: "entry-012", createdAt: "2026-06-03T09:00:00.000Z", positionId: "portfolio-alpha", receiptId: "receipt-012" }),
+    project_refs: ["collection-alpha"],
+  },
 ]
 
 test("same artifact identity input produces the same artifact_root", () => {
@@ -253,10 +266,108 @@ test("/position/:id/artifact and /position/:id/snapshot routes return outputs wi
   assert.match(snapshot.artifact_root, /^sha256:[0-9a-f]{64}$/)
 })
 
+test("same portfolio identity input produces the same portfolio_root", () => {
+  const input = {
+    portfolio_version: "chronicle.portfolio.v0",
+    portfolio_id: "portfolio-alpha",
+    collection_refs: ["/collection/collection-beta", "/collection/collection-alpha"],
+  }
+
+  assert.equal(computePortfolioRootV0(input), computePortfolioRootV0(input))
+})
+
+test("changing collection_refs changes portfolio_root", () => {
+  const base = computePortfolioRootV0({
+    portfolio_version: "chronicle.portfolio.v0",
+    portfolio_id: "portfolio-alpha",
+    collection_refs: ["/collection/collection-alpha", "/collection/collection-beta"],
+  })
+  const changed = computePortfolioRootV0({
+    portfolio_version: "chronicle.portfolio.v0",
+    portfolio_id: "portfolio-alpha",
+    collection_refs: ["/collection/collection-alpha", "/collection/collection-gamma"],
+  })
+
+  assert.notEqual(base, changed)
+})
+
+test("collection_refs ordering does not affect portfolio_root", () => {
+  const a = computePortfolioRootV0({
+    portfolio_version: "chronicle.portfolio.v0",
+    portfolio_id: "portfolio-alpha",
+    collection_refs: ["/collection/collection-beta", "/collection/collection-alpha"],
+  })
+  const b = computePortfolioRootV0({
+    portfolio_version: "chronicle.portfolio.v0",
+    portfolio_id: "portfolio-alpha",
+    collection_refs: ["/collection/collection-alpha", "/collection/collection-beta"],
+  })
+
+  assert.equal(a, b)
+})
+
+test("derived overlays do not change portfolio_root", () => {
+  const base = computePortfolioRootV0({
+    portfolio_version: "chronicle.portfolio.v0",
+    portfolio_id: "portfolio-alpha",
+    collection_refs: ["/collection/collection-alpha", "/collection/collection-beta"],
+  })
+  const withDerivedOverlays = computePortfolioRootV0({
+    portfolio_version: "chronicle.portfolio.v0",
+    portfolio_id: "portfolio-alpha",
+    collection_refs: ["/collection/collection-beta", "/collection/collection-alpha"],
+    snapshots: { count: 2 },
+    lineage: { summary: true },
+    scorecard: { score: 99 },
+    rendered_at: "2026-06-27T00:00:00.000Z",
+    ownership: { claim: false },
+  })
+
+  assert.equal(base, withDerivedOverlays)
+})
+
+test("portfolio view displays full portfolio_root", () => {
+  const portfolio = createPortfolio("portfolio-alpha", portfolioEntries)
+  const html = renderPortfolioHtml("portfolio-alpha", portfolio)
+
+  assert.match(html, new RegExp(portfolio.portfolio_root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+  assert.match(html, /root-block/)
+  assert.match(html, /overflow-wrap: anywhere;/)
+  assert.match(html, /word-break: break-word;/)
+  assert.match(html, /portfolio_id/)
+  assert.match(html, /portfolio_version/)
+  assert.match(html, /collection_count/)
+  assert.match(html, /artifact_count/)
+  assert.match(html, /collection_refs/)
+})
+
+test("portfolio export includes portfolio_root", () => {
+  const portfolio = createPortfolio("portfolio-alpha", portfolioEntries)
+  const exportPayload = {
+    ...portfolio,
+    entries: portfolioEntries,
+  }
+
+  assert.equal(exportPayload.portfolio_id, "portfolio-alpha")
+  assert.equal(exportPayload.portfolio_version, "chronicle.portfolio.v0")
+  assert.equal(exportPayload.collection_count, portfolio.collection_count)
+  assert.equal(exportPayload.artifact_count, portfolio.artifact_count)
+  assert.deepEqual(exportPayload.collection_refs, portfolio.collection_refs)
+  assert.match(exportPayload.portfolio_root, /^sha256:[0-9a-f]{64}$/)
+})
+
 test("/collections and /collection routes are wired", () => {
   const source = fs.readFileSync(path.join(repoRoot, "scripts", "run_chronicle_node.mjs"), "utf8")
   assert.match(source, /if \(request\.method === "GET" && url\.pathname === "\/collections"\)/)
   assert.match(source, /if \(request\.method === "GET" && url\.pathname\.startsWith\("\/collection\/"\)\)/)
   assert.match(source, /if \(parts\.length === 3 && parts\[2\] === "export"\) \{\s+return json\(response, 200, \{\s+\.\.\.collection,/s)
   assert.match(source, /if \(parts\.length === 3 && parts\[2\] === "view"\) \{\s+return html\(response, 200, renderCollectionHtml\(collectionId, collection\)\)/s)
+})
+
+test("/portfolios and /portfolio routes are wired", () => {
+  const source = fs.readFileSync(path.join(repoRoot, "scripts", "run_chronicle_node.mjs"), "utf8")
+  assert.match(source, /if \(request\.method === "GET" && url\.pathname === "\/portfolios"\)/)
+  assert.match(source, /if \(request\.method === "GET" && url\.pathname\.startsWith\("\/portfolio\/"\)\)/)
+  assert.match(source, /if \(parts\.length === 3 && parts\[2\] === "export"\) \{\s+return json\(response, 200, \{\s+\.\.\.portfolio,/s)
+  assert.match(source, /if \(parts\.length === 3 && parts\[2\] === "view"\) \{\s+return html\(response, 200, renderPortfolioHtml\(portfolioId, portfolio\)\)/s)
 })
