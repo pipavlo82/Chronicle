@@ -5,7 +5,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { computeArtifactRootV0 } from "../src/chronicle_position_artifact.mjs"
 import { computeCollectionRootV0 } from "../src/chronicle_collection.mjs"
-import { createCollection, createPositionArtifact, createPositionSnapshot, renderArtifactHtml } from "../scripts/run_chronicle_node.mjs"
+import { createCollection, createPositionArtifact, createPositionSnapshot, renderArtifactHtml, renderCollectionHtml } from "../scripts/run_chronicle_node.mjs"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -194,8 +194,38 @@ test("artifact_refs ordering does not affect collection_root", () => {
 
 test("collection export includes collection_root", () => {
   const collection = createCollection("position-alpha", baseEntries)
-  assert.equal(collection.collection_version, "chronicle.collection.v0")
-  assert.match(collection.collection_root, /^sha256:[0-9a-f]{64}$/)
+  const exportPayload = {
+    ...collection,
+    entries: baseEntries,
+  }
+
+  assert.equal(exportPayload.collection_id, "position-alpha")
+  assert.equal(exportPayload.collection_version, "chronicle.collection.v0")
+  assert.equal(exportPayload.artifact_count, collection.artifact_count)
+  assert.deepEqual(exportPayload.artifact_refs, collection.artifact_refs)
+  assert.match(exportPayload.collection_root, /^sha256:[0-9a-f]{64}$/)
+})
+
+test("collection root remains stable across repeated generation", () => {
+  const collectionA = createCollection("position-alpha", collectionEntries)
+  const collectionB = createCollection("position-alpha", collectionEntries)
+
+  assert.equal(collectionA.collection_root, collectionB.collection_root)
+  assert.deepEqual(collectionA.artifact_refs, collectionB.artifact_refs)
+})
+
+test("collection view displays full collection_root in a wrapping block", () => {
+  const collection = createCollection("position-alpha", collectionEntries)
+  const html = renderCollectionHtml("position-alpha", collection)
+
+  assert.match(html, new RegExp(collection.collection_root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+  assert.match(html, /root-block/)
+  assert.match(html, /overflow-wrap: anywhere;/)
+  assert.match(html, /word-break: break-word;/)
+  assert.match(html, /collection_id/)
+  assert.match(html, /collection_version/)
+  assert.match(html, /artifact_count/)
+  assert.match(html, /artifact_refs/)
 })
 
 test("collection output recomputes root from sorted artifact refs only", () => {
@@ -227,6 +257,6 @@ test("/collections and /collection routes are wired", () => {
   const source = fs.readFileSync(path.join(repoRoot, "scripts", "run_chronicle_node.mjs"), "utf8")
   assert.match(source, /if \(request\.method === "GET" && url\.pathname === "\/collections"\)/)
   assert.match(source, /if \(request\.method === "GET" && url\.pathname\.startsWith\("\/collection\/"\)\)/)
-  assert.match(source, /if \(parts\.length === 3 && parts\[2\] === "export"\)/)
-  assert.match(source, /if \(parts\.length === 3 && parts\[2\] === "view"\)/)
+  assert.match(source, /if \(parts\.length === 3 && parts\[2\] === "export"\) \{\s+return json\(response, 200, \{\s+\.\.\.collection,/s)
+  assert.match(source, /if \(parts\.length === 3 && parts\[2\] === "view"\) \{\s+return html\(response, 200, renderCollectionHtml\(collectionId, collection\)\)/s)
 })

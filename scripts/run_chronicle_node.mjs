@@ -614,7 +614,7 @@ function renderCollectionLinks(collectionIds) {
   `
 }
 
-function renderCollectionHtml(collectionId, collection) {
+export function renderCollectionHtml(collectionId, collection) {
   const artifactRefs = collection.artifact_refs.length === 0
     ? "<em>none</em>"
     : collection.artifact_refs.map((artifactRef) => `<div><code>${escapeHtml(artifactRef)}</code></div>`).join("")
