@@ -1,0 +1,12 @@
+{
+  "schema": "chronicle_entry.v0",
+  "entry_id": "entry-proofobj-example-b",
+  "source_system": "ReceiptOS",
+  "receipt_root": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "proof_object_ref": "receiptos://portable-proof-object/proofobj-example-b",
+  "evidence_capsule_ref": "embedded:proofobj-example-b:evidence_capsule",
+  "provenance_summary_ref": "embedded:proofobj-example-b:provenance_summary",
+  "created_from": "example://stealth-evidence-b.json",
+  "labels": [],
+  "notes": null
+}
