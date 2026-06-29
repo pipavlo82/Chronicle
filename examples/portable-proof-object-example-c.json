@@ -1,0 +1,27 @@
+{
+  "schema": "receiptos.portable_proof_object.v0",
+  "proof_object_id": "proofobj-example-c",
+  "proof_system": "ReceiptOS",
+  "receipt_root": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "proof_ref": "receiptos://portable-proof-object/proofobj-example-c",
+  "replay_ref": "receiptos://replay/session-example-c",
+  "anchor_ref": null,
+  "created_at": "2026-06-29T14:00:00.000Z",
+  "relation_type": "imported",
+  "project_refs": ["workspace"],
+  "source_evidence_ref": "example://stealth-evidence-c.json",
+  "producer": {
+    "runtime": "Stealth",
+    "agent_id": "stealth-main",
+    "generated_by": "stealth.handoff.evidence.builder.v1",
+    "source_schema": "stealth.session.evidence.v1"
+  },
+  "metadata": {
+    "label": "Example proof object C",
+    "session_id": "session-example-c",
+    "directory": "C:/demo/workspace-c",
+    "position_id": "workspace"
+  },
+  "evidence_capsule": { "schema": "receiptos.evidence_capsule.v0" },
+  "provenance_summary": { "schema": "receiptos.provenance_summary.v0" }
+}

@@ -1,0 +1,11 @@
+{
+  "schema": "chronicle_portfolio.v0",
+  "portfolio_id": "chronicle-portfolio-example",
+  "portfolio_version": "chronicle_portfolio.v0",
+  "collection_refs": [
+    "entry-proofobj-example-a",
+    "entry-proofobj-example-b",
+    "entry-proofobj-example-c"
+  ],
+  "portfolio_root": "sha256:f829ecf5382e29761a16d516401f2f48d4560af2ea4d88be125a179edcab5884"
+}
