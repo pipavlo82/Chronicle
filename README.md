@@ -23,6 +23,8 @@ Chronicle does not replace ReceiptOS verification.
 Chronicle does not modify proof objects.
 Chronicle does not define ownership, identity, NFT, marketplace, or reputation logic in MVP.
 
+Post-quantum considerations for receipt longevity: see [pq-receipt-profile](https://github.com/pipavlo82/pq-receipt-profile).
+
 A longer MVP explanation is in `docs/chronicle_mvp_explainer.md`.
 
 
