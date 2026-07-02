@@ -25,6 +25,8 @@ Chronicle does not define ownership, identity, NFT, marketplace, or reputation l
 
 Post-quantum considerations for receipt longevity: see [pq-receipt-profile](https://github.com/pipavlo82/pq-receipt-profile).
 
+Core formulations: see [Canonical Principles](docs/CANONICAL_PRINCIPLES.md).
+
 A longer MVP explanation is in `docs/chronicle_mvp_explainer.md`.
 
 
