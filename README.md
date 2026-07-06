@@ -29,6 +29,8 @@ Core formulations: see [Canonical Principles](docs/CANONICAL_PRINCIPLES.md).
 
 A longer MVP explanation is in `docs/chronicle_mvp_explainer.md`.
 
+Chronicle follows a simple rule: history should begin only after correctness has survived independent verification. Without the proof step, history becomes a story someone tells about what happened, not a fact others can re-derive. See: [Verification Before History](docs/verification-before-history.md).
+
 
 Chronicle starts from a simple premise:
 
