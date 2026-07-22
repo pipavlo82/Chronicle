@@ -2,339 +2,278 @@
 
 ## Purpose
 
-Chronicle Entry v0 defines the first Chronicle-native object.
+Chronicle Entry v0 defines the canonical Chronicle-owned entry object for binding
+Chronicle history to an upstream ReceiptOS proof boundary without redefining
+that proof boundary.
+
+A Chronicle Entry is not a ReceiptOS proof object.
+It is a Chronicle-layer historical/compositional object that references an
+upstream ReceiptOS portable proof object and preserves the upstream
+`receipt_root` as ReceiptOS-owned identity.
+
+Core chain:
+
+ReceiptOS evidence
+→ `receiptos.portable_proof_object.v0`
+→ `chronicle_entry.v0`
+→ higher Chronicle aggregates
+
+Chronicle Entry exists to preserve the distinction between:
+
+- ReceiptOS proof identity and verification; and
+- Chronicle-native entry identity, continuity, ordering, and aggregation.
+
+## Canonical Chronicle Entry v0 wire shape
+
+The canonical Chronicle Entry v0 top-level fields are exactly:
+
+- `schema`
+- `entry_id`
+- `source_system`
+- `receipt_root`
+- `proof_object_ref`
+- `evidence_capsule_ref`
+- `provenance_summary_ref`
+- `created_from`
+- `labels`
+- `notes`
+
+The canonical Chronicle Entry v0 top-level fields are exactly the ten fields
+listed above. No other top-level field is part of the canonical v0 wire shape.
+
+`schema` MUST equal `chronicle_entry.v0`.
+
+Every canonical v0 entry contains singular `proof_object_ref`.
+Every canonical v0 entry contains separate `receipt_root`.
+`proof_object_refs[]` is not the canonical Chronicle Entry v0 wire shape.
+Multiple proofs MUST NOT be silently represented by restoring the old plural
+field.
+Aggregation of multiple proof objects belongs to a higher Chronicle aggregate
+layer or a future schema version.
+
+## Current constructor behavior and field contract
+
+This amendment pins the current concrete constructor behavior shared by the live
+ReceiptOS Chronicle export path.
+
+The current implemented top-level behavior is:
+
+- `schema`: required string; exactly `chronicle_entry.v0`
+- `entry_id`: required string
+- `source_system`: required string
+- `receipt_root`: required string
+- `proof_object_ref`: required string
+- `evidence_capsule_ref`: required string
+- `provenance_summary_ref`: required string
+- `created_from`: required; string or `null`
+- `labels`: required array of strings
+- `notes`: required; string or `null`
+
+`entry_id` defaulting to `entry-<proof_object_id>` is current constructor
+behavior only.
+It is not defined here as a content-addressed root or new cryptographic
+identity.
+
+## Status of fields from the earlier MVP proposal
+
+The earlier high-level Chronicle Entry and MVP model also used fields that are
+not part of the canonical chronicle_entry.v0 top-level wire shape.
 
-A Chronicle Entry is the smallest Chronicle-native composition unit in the Chronicle architecture.
+Their status is:
 
-It is not a Proof Object.
+- proof_object_refs[] is a legacy MVP field. Canonical v0 replaces that
+ plural entry field with singular proof_object_ref plus separate
+ receipt_root.
+- project_refs[], relation_type, and created_at are not Chronicle Entry
+ v0 top-level fields. Where present in the current ReceiptOS export path,
+ those values remain properties of the referenced
+ receiptos.portable_proof_object.v0; Chronicle Entry v0 does not duplicate
+ them.
+- identity_refs[], organization_refs[], chronology_position, and
+ metadata are legacy MVP entry fields with no canonical v0 top-level
+ counterpart.
+- Migration, projection, or placement of legacy fields into higher Chronicle
+ artifacts requires a separate versioned follow-up.
 
-Instead, a Chronicle Entry references one or more ReceiptOS Proof Objects and adds Chronicle-level continuity, identity, lineage, and composition metadata above the proof substrate.
+Absence of these legacy fields from chronicle_entry.v0 MUST NOT be interpreted
+as loss of upstream ReceiptOS evidence. The referenced portable proof object
+remains the source of ReceiptOS-owned proof and export data.
 
-This is the core chain:
+## Portable proof object boundary
 
-ReceiptOS Proof Object  
-→ Chronicle Entry  
-→ Chronicle
+A Chronicle Entry v0 created from ReceiptOS evidence MUST first consume a
+conforming portable proof object whose schema is
+`receiptos.portable_proof_object.v0`.
 
-In that chain:
+Portable-proof-object conformance and Chronicle field-binding consistency do
+not by themselves establish ReceiptOS proof validity. ReceiptOS verification
+remains ReceiptOS-owned.
+Conforming object shape is not a validity verdict.
+Chronicle field binding is not ReceiptOS verification.
+Chronicle MUST NOT promote object availability or schema conformance into a
+valid ReceiptOS verdict.
 
-- ReceiptOS Proof Object provides immutable proof-bearing truth
-- Chronicle Entry provides Chronicle-native historical context and composition
-- Chronicle provides the larger longitudinal object built from many Entries
+The required relations are:
 
-Chronicle Entry therefore exists to bridge immutable proof units and living, appendable histories.
+```text
+entry.proof_object_ref = portable_proof_object.proof_ref
+entry.receipt_root = portable_proof_object.receipt_root
+entry.source_system = portable_proof_object.proof_system
+```
 
-## Design Goals
+Use the exact current constructor relations from the live ReceiptOS Chronicle
+export path.
 
-Chronicle Entry v0 should be:
+The current canonical constructor behavior is:
 
-- composable
-- portable
-- renderer-neutral
-- identity-aware
-- proof-preserving
-- append-only friendly
+```text
+entry.evidence_capsule_ref = embedded:<proof_object_id>:evidence_capsule
+entry.provenance_summary_ref = embedded:<proof_object_id>:provenance_summary
+entry.created_from = portable_proof_object.source_evidence_ref
+```
 
-### Why these goals matter
+`labels` defaults to an empty array.
+`notes` defaults to `null`.
 
-#### Composable
-A Chronicle Entry must work as a unit that can participate in larger histories, graphs, timelines, and portfolios.
+## Current `proof_object_id` and `proof_ref` construction
 
-#### Portable
-A Chronicle Entry should remain meaningful across systems, repositories, viewers, archival bundles, and future transport layers.
+The current implemented export relation is exactly:
 
-#### Renderer-neutral
-No single renderer, wrapper, or presentation surface should define the meaning of the Entry.
+```text
+proof_object_id = "proofobj-" + receipt_root with the leading "0x" removed
+proof_ref = "receiptos://portable-proof-object/" + proof_object_id
+```
 
-#### Identity-aware
-A Chronicle Entry should be able to associate proof history with relevant actors and contexts without turning identity into proof.
+`proof_ref` is a deterministic ReceiptOS URI.
+It is not currently a content hash of the complete portable proof object.
+This amendment does not change its syntax or derivation.
+Changing it to a content-addressed reference requires a future version.
 
-#### Proof-preserving
-A Chronicle Entry must preserve the proof boundary established by ReceiptOS rather than reinterpreting or replacing it.
+## Direct root collapse is forbidden
 
-#### Append-only friendly
-A Chronicle Entry should support a growing history model in which new entries extend a Chronicle without rewriting prior entries.
+`entry.proof_object_ref` MUST NOT equal `entry.receipt_root`.
+This is a semantic requirement even though both fields are strings.
 
-## Chronicle Entry in the Layering Model
+`receipt_root` is the ReceiptOS proof identity.
+`proof_object_ref` identifies the portable proof object carrying that proof.
+Assigning the capsule root directly to `proof_object_ref` is non-conformant.
+A bare `receipt_root` is insufficient to resolve the full portable proof
+object.
+The portable proof object carries the evidence capsule, provenance summary,
+replay and anchor references, producer information, source evidence reference,
+and export metadata.
 
-Chronicle Entry belongs to the Chronicle layer, not the ReceiptOS layer.
+This amendment does not claim that `proof_ref` cryptographically commits to
+every byte of the portable proof object.
 
-ReceiptOS owns proof generation, proof packaging, verification semantics, and immutable proof-bearing outputs.
+## Root-layer separation
 
-Chronicle Entry owns the Chronicle-native concerns that sit above proof, including:
+The following layers are distinct.
 
-- continuity
-- lineage
-- relation typing
-- historical positioning
-- identity association
-- project and organization context
-- composition into larger Chronicle structures
+### ReceiptOS `receipt_root`
 
-The architectural boundary is intentional.
+ReceiptOS-owned.
+Identifies the recomputable ReceiptOS proof boundary.
 
-If the Entry structure were pushed into the Proof Object, Chronicle would begin to collapse the distinction between proof and history composition. Chronicle Entry exists precisely to prevent that collapse.
+### `proof_object_id`
 
-## Chronicle Entry Structure
+ReceiptOS export-layer identifier.
+Currently derived from `receipt_root`.
 
-Chronicle Entry v0 proposes the following fields.
+### `proof_ref`
 
-These are specification-level fields only. This document does not define a schema, implementation format, or database model.
+Reference to `receiptos.portable_proof_object.v0`.
+Stored as Chronicle `proof_object_ref`.
 
-### `entry_id`
+### Chronicle `entry_id`
 
-**Purpose:**
-A Chronicle-native identifier for the Entry itself.
+Chronicle-owned entry identifier.
+Not a ReceiptOS root.
+Current constructor behavior may derive it from `proof_object_id`, but it is
+not a newly defined content hash.
 
-**Why it belongs at the Chronicle layer:**
-The Entry is its own object, separate from the underlying Proof Objects it references. It needs a stable Chronicle-level identity so it can be addressed, grouped, rendered, related, and referenced independently of any single proof unit.
+### Chronicle aggregate roots
 
-A Proof Object already has its own proof identity. `entry_id` identifies the Chronicle-native compositional unit built above that substrate.
+Chronicle-owned.
+Computed only under their own artifact contracts.
 
-### `proof_object_refs[]`
+Equality between these layers is not required.
+Equality MUST NOT be assumed.
+Chronicle does not replace ReceiptOS identity with Chronicle identity.
+Chronicle does not recompute a new value and call it `receipt_root`.
 
-**Purpose:**
-References to one or more ReceiptOS Proof Objects that this Entry incorporates into a Chronicle context.
+## Verification responsibility
 
-**Why it belongs at the Chronicle layer:**
-The Proof Objects remain immutable and canonical in ReceiptOS. Chronicle Entry does not embed or redefine them. Instead, it references them as upstream truth-bearing units.
+Chronicle preserves and references `receipt_root`.
+Chronicle does not redefine ReceiptOS canonicalization.
+Chronicle does not reinterpret ReceiptOS validity.
+Chronicle does not score, certify, sign, or create ownership.
+Chronicle may verify that entry fields bind consistently to the referenced
+portable proof object.
+ReceiptOS verification remains ReceiptOS-owned.
+Chronicle computes only Chronicle-owned entry identities, aggregate roots,
+ordering, and continuity relations.
 
-This field belongs at the Chronicle layer because Chronicle’s job is to compose over proof objects, not to become one.
+History records facts. Reputation interprets them.
 
-### `identity_refs[]`
+Chronicle Entry v0 does not introduce:
 
-**Purpose:**
-References to identities associated with the Entry.
+- verdict fields
+- scoring fields
+- reputation fields
+- ownership fields
+- NFT logic
 
-These may include identities for:
+## Legacy plural model status
 
-- people
-- AI agents
-- organizations
-- repositories
-- projects
-- teams or other future identity-bearing entities
+The older Chronicle MVP model using `proof_object_refs[]` is legacy.
+It is not the canonical `chronicle_entry.v0` wire shape after this amendment.
+Canonical v0 uses singular `proof_object_ref` plus separate `receipt_root`.
+Multiple proof objects MUST NOT be represented by restoring the plural field.
+Multi-proof aggregation belongs to a higher Chronicle aggregate layer or a
+future schema version.
+Migration of legacy implementation and examples is a separate follow-up.
 
-**Why it belongs at the Chronicle layer:**
-Identity association is a Chronicle concern, not a proof-substrate concern. ReceiptOS proves events and evidence structure. Chronicle relates those verified events to persistent identities and lineages over time.
+This branch does not modify the legacy implementation.
 
-Identity must remain associative, not proof-defining.
+## Unresolved seams intentionally preserved
 
-### `project_refs[]`
+This amendment does not invent rules for:
 
-**Purpose:**
-References to one or more projects that provide project-level context for the Entry.
+- a cryptographic `entry_id`
+- content-addressing the complete Chronicle Entry
+- replacing `proof_ref` with SHA-256
+- multiple proof objects inside one entry
+- retrieval transport
+- storage location
+- signatures
+- ownership
+- NFT logic
+- reputation
+- scoring
 
-**Why it belongs at the Chronicle layer:**
-Projects often span many Proof Objects and many Entries over time. Project grouping is therefore part of higher-order historical composition rather than proof generation itself.
+The portable-proof-object boundary itself is normative and is not deferred.
 
-This field enables a Chronicle Entry to participate in larger project-level bodies of work without forcing project semantics into the Proof Object.
+## Chronicle versus ReceiptOS boundary
 
-### `organization_refs[]`
+ReceiptOS owns:
 
-**Purpose:**
-References to one or more organizations associated with the Entry.
-
-**Why it belongs at the Chronicle layer:**
-Organizations are part of continuity, stewardship, authorship context, and institutional lineage. Those are Chronicle-layer concerns. They may frame how an Entry participates in a broader history, but they do not define proof truth.
-
-### `relation_type`
-
-**Purpose:**
-A Chronicle-level relation label describing the role or historical meaning of the Entry within a larger Chronicle.
-
-**Why it belongs at the Chronicle layer:**
-Relation semantics connect entries into legible histories. These are not proof semantics and should not be fused into Proof Objects. ReceiptOS proves what happened. Chronicle interprets how proof-bearing units connect inside a longitudinal history.
-
-### `chronology_position`
-
-**Purpose:**
-A field for expressing relative or explicit historical ordering within a Chronicle.
-
-**Why it belongs at the Chronicle layer:**
-Chronology in a Chronicle is about historical placement, sequence, and continuity across many Proof Objects and Entries. Proof Objects may contain timestamps or event timing, but Chronicle ordering is a higher-order compositional concern.
-
-This field helps make a Chronicle readable as history rather than as an unstructured bag of proofs.
-
-### `created_at`
-
-**Purpose:**
-The creation time of the Chronicle Entry as an Entry object.
-
-**Why it belongs at the Chronicle layer:**
-This is not the same as the timing of the underlying proof event. `created_at` records when the Chronicle-native composition unit was created. That matters because proof timing and Chronicle composition timing are related but not identical concepts.
-
-### `metadata`
-
-**Purpose:**
-An extensible Chronicle-layer metadata container for contextual information that does not belong in core proof semantics.
-
-Examples may include:
-
-- human-readable framing
-- renderer hints that do not alter truth
-- continuity notes
-- lightweight labels
-- non-canonical descriptive context
-
-**Why it belongs at the Chronicle layer:**
-Chronicle needs room for compositional and historical context that remains explicitly downstream of proof. This field provides extensibility without forcing every contextual concern into the Proof Object.
-
-The presence of `metadata` must never be used to redefine proof truth.
-
-## Proof Boundary
-
-Chronicle Entry must preserve the Proof Object boundary.
-
-Chronicle Entry must not:
-
-- modify Proof Objects
-- redefine proof truth
-- replace verification
-- mutate receipt semantics
-
-Chronicle Entry only references Proof Objects.
-
-Proof remains owned by ReceiptOS.
-
-That means ReceiptOS remains responsible for:
-
+- proof generation
 - canonical proof structure
 - evidence normalization
 - proof verification
-- proof-bearing truth
 - receipt semantics
+- `receipt_root`
+- portable proof object production
 
-Chronicle Entry remains responsible for Chronicle-native composition and continuity only.
+Chronicle owns:
 
-## Relation Types
+- `entry_id`
+- entry-level field binding
+- Chronicle-native ordering
+- Chronicle-native continuity
+- Chronicle-native aggregate roots
+- historical composition above the proof layer
 
-Chronicle Entry v0 may use relation labels such as:
-
-- `created`
-- `verified`
-- `reviewed`
-- `published`
-- `derived_from`
-- `continuation_of`
-- `milestone`
-- `release`
-- `handoff`
-
-These examples are illustrative, not final.
-
-They should be understood as an initial vocabulary for expressing historical and compositional relationships between Entries and the broader Chronicle they belong to.
-
-The purpose of `relation_type` is not to replace proof semantics. Its purpose is to make Chronicle history legible, structured, and composable.
-
-Future versions may refine, constrain, extend, or profile these labels for different Chronicle systems.
-
-## Identity Layer
-
-Chronicle Entry may associate history with:
-
-- people
-- AI agents
-- organizations
-- repositories
-- projects
-
-It may also support other identity-bearing entities in the future.
-
-The important architectural rule is that identity is not equivalent to proof.
-
-Identity association can help answer questions such as:
-
-- who participated?
-- which agent produced or influenced this work?
-- what organization or repository does this belong to?
-- what larger lineage does this continue?
-
-But identity references do not prove that the underlying event occurred. Proof remains upstream in ReceiptOS.
-
-Chronicle Entry therefore provides identity-aware history without collapsing identity into truth.
-
-## Renderer Independence
-
-All renderers and wrappers must consume the same Chronicle Entry model.
-
-This includes, for example:
-
-- Crystal Viewer
-- PDF
-- Profile
-- NFT wrapper
-- future surfaces
-
-No renderer should define Chronicle truth.
-
-A renderer may:
-
-- project an Entry visually
-- package an Entry for portability
-- expose an Entry for discovery
-- wrap an Entry for transport or ownership context
-
-A renderer must not:
-
-- redefine proof truth
-- alter the meaning of the Entry’s proof references
-- become the canonical authority over the Entry
-
-Chronicle truth must come from the underlying Chronicle Entry model and its upstream Proof Object references, not from a renderer-specific implementation.
-
-## Append-only Model
-
-Chronicle Entry v0 is designed for append-only friendly history.
-
-New Chronicle Entries extend history.
-Existing entries remain unchanged.
-
-This means Chronicle should evolve by:
-
-- adding new Entries
-- adding new relations
-- extending historical continuity
-- referencing additional Proof Objects over time
-
-It should not evolve by rewriting existing Entries as the default historical mechanism.
-
-This append-oriented model keeps Chronicle aligned with living provenance while preserving historical legibility and proof integrity.
-
-## Future Compatibility
-
-Future Chronicle systems should build on Chronicle Entry as the first canonical Chronicle-native unit.
-
-This includes potential future systems such as:
-
-- Chronicle Graph
-- Chronicle Portfolio
-- Chronicle Timeline
-- Chronicle Ownership Wrappers
-
-Each of these systems should treat Chronicle Entry as a shared compositional substrate rather than inventing parallel object definitions that fracture Chronicle semantics.
-
-That shared foundation is what makes renderer independence, portability, and long-term composability possible.
-
-## Non-goals
-
-This v0 specification does not include:
-
-- schema implementation
-- JSON schema
-- TypeScript types
-- database design
-- NFT implementation
-- marketplace logic
-
-It is a docs-first architectural specification for the first Chronicle-native object.
-
-## Short Summary of Design Decisions
-
-- Chronicle Entry is defined as the smallest Chronicle-native object.
-- It is explicitly not a Proof Object.
-- It references one or more ReceiptOS Proof Objects without modifying them.
-- It adds Chronicle-layer continuity, identity, lineage, chronology, and composition metadata.
-- It preserves a hard proof boundary: ReceiptOS defines proof truth; Chronicle Entry defines historical composition above that truth.
-- It is designed to be renderer-neutral, portable, and append-only friendly.
-- Future Chronicle systems should build on Chronicle Entry rather than bypass it.
+Chronicle Entry therefore preserves the proof boundary established by ReceiptOS
+rather than reinterpreting or replacing it.

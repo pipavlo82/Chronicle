@@ -174,6 +174,16 @@ Invoke-RestMethod http://localhost:8080/health
 
 ### 3. POST a manual Chronicle entry
 
+Legacy MVP model example:
+
+- this example uses the legacy Chronicle MVP `proof_object_refs[]` structure;
+- it is not the canonical `chronicle_entry.v0` wire shape;
+- canonical v0 uses singular `proof_object_ref` plus separate `receipt_root`;
+- `proof_object_ref` references `receiptos.portable_proof_object.v0`;
+- multiple proof objects belong to a higher Chronicle aggregate layer or a future schema version;
+- migration of the legacy MVP implementation is a separate follow-up;
+- see `specs/chronicle_entry_v0.md` for the canonical v0 boundary.
+
 ```powershell
 $entry = @{
   entry_id = "entry-manual-001"
