@@ -241,7 +241,20 @@ Expected result:
 - the imported proof appears in `/chronicle.md`
 - the imported proof appears in `/view`
 
-Re-importing the same ReceiptOS proof object is idempotent.
+This route may report an existing identity as not newly imported when
+`proof_object_id` or `entry_id` already matches a stored entry.
+
+- Canonical `chronicle_entry.v0` semantics permit idempotence only for an
+  exact byte-for-byte re-import of the previously accepted portable proof
+  object.
+- The same `proof_object_id`, or the same derived/supplied `entry_id`, with
+  non-identical portable-object bytes is an explicit identity conflict, not
+  an idempotent re-import.
+- Such a conflict must not be overwritten or silently deduplicated.
+- The current legacy MVP `/import/receipt` route does not yet perform this
+  byte-level collision check.
+- Normative re-import and identity-conflict behavior is pinned in
+  `specs/chronicle_entry_v0.md`.
 
 ## Import Receipt Timeline
 
@@ -258,7 +271,12 @@ Invoke-RestMethod -Method Post `
 
 This imports multiple timeline events from one ReceiptOS-style capsule, creates one Chronicle Entry per event, preserves the shared proof reference, and makes the result visible in `/entries`, `/timeline`, `/chronicle.md`, `/view`, and `/project/:project_ref/view`.
 
-Re-importing the same timeline capsule is idempotent for already imported event IDs.
+Skipping already-imported event IDs is current legacy MVP route behavior. It
+is not sufficient to establish canonical byte-identical idempotence: a
+repeated identity with different underlying portable-object bytes must be
+treated as an explicit conflict under the canonical Entry v0 rule. Migrating
+this route to perform that check is a separate implementation follow-up. See
+`specs/chronicle_entry_v0.md`.
 
 ### 5. Generate timeline
 
