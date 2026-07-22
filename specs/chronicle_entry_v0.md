@@ -277,3 +277,39 @@ Chronicle owns:
 
 Chronicle Entry therefore preserves the proof boundary established by ReceiptOS
 rather than reinterpreting or replacing it.
+
+## Re-import and identity-conflict semantics
+
+The current v0 identity chain derives `proof_object_id` and the default
+`entry_id` from `receipt_root`.
+Those identifiers bind the ReceiptOS proof boundary. They do not commit to
+every byte of the `receiptos.portable_proof_object.v0` envelope.
+For a Chronicle importer or store:
+
+- The first accepted portable proof object for a given `proof_object_id`
+ establishes the local binding between that identity and the exact
+ portable-object byte sequence accepted by the importer.
+- A later import with the same `proof_object_id` MAY be treated as idempotent
+ only when its portable-object bytes are byte-for-byte identical to the
+ previously accepted byte sequence.
+- The same `proof_object_id` with non-identical portable-object bytes is an
+ identity conflict.
+- An identity conflict MUST be surfaced explicitly. The importer MUST NOT
+ overwrite, merge, refresh, replace, update in place, or silently deduplicate
+ the previously accepted portable object.
+- The same derived or supplied `entry_id` bound to a non-byte-identical
+ portable object is also an identity conflict and MUST NOT overwrite the
+ existing Chronicle entry.
+- If the importer does not retain the previously accepted exact byte sequence,
+ or otherwise cannot establish exact byte identity, it MUST NOT claim an
+ idempotent re-import. It MUST fail closed as an identity conflict.
+- An identity conflict is a Chronicle import or storage outcome. It does not
+ alter the ReceiptOS `receipt_root`, does not invalidate or validate the
+ ReceiptOS proof, and does not reinterpret a ReceiptOS verifier verdict.
+- Identity-conflict state is not a field of `chronicle_entry.v0`.
+
+Chronicle Entry v0 defines no semantic JSON-equivalence rule and no canonical
+whole-envelope digest for `receiptos.portable_proof_object.v0`.
+Changing from exact byte identity to canonical-content equivalence, adding a
+portable-object digest, permitting update-in-place behavior, or treating
+distinct envelopes as equivalent requires a separate versioned contract.
