@@ -1,8 +1,19 @@
 export const CHRONICLE_ENTRY_VERSION_V0 = "chronicle_entry.v0"
 
-export function createChronicleEntryV0(portableProofObject, options = {}) {
+// Internal field-mapping builder only. This is NOT the canonical
+// ReceiptOS entry-creation API and MUST NOT be called with a
+// caller-supplied proof object that has not already passed independent
+// admission. It performs no recomputation and no evidence check of its
+// own -- it only maps an already-admitted PortableProofObjectV0 onto the
+// canonical chronicle_entry.v0 wire shape.
+//
+// The only sanctioned public path to a canonical ReceiptOS-backed
+// chronicle_entry.v0 is admitReceiptOSChronicleEntryV0(evidence, proofObject)
+// in src/chronicle_receiptos_admission.mjs, which calls this builder only
+// after the independent recomputation gate has passed.
+export function buildChronicleEntryV0FromAdmittedProofObject(portableProofObject, options = {}) {
   if (!portableProofObject || typeof portableProofObject !== "object") {
-    throw new Error("createChronicleEntryV0 requires a portable proof object")
+    throw new Error("buildChronicleEntryV0FromAdmittedProofObject requires a portable proof object")
   }
   if (portableProofObject.schema !== "receiptos.portable_proof_object.v0") {
     throw new Error("Chronicle entry v0 currently expects receiptos.portable_proof_object.v0")

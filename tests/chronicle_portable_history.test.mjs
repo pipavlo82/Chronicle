@@ -1,6 +1,10 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { createChronicleEntryV0 } from "../src/chronicle_entry.mjs"
+// This suite tests portfolio_root math over opaque entry_id refs only; it
+// does not exercise or claim ReceiptOS admission. It deliberately calls the
+// internal field-mapping builder directly (white-box fixture construction)
+// rather than the public admission gate, which requires real evidence.
+import { buildChronicleEntryV0FromAdmittedProofObject } from "../src/chronicle_entry.mjs"
 import {
   computeChroniclePortfolioRootV0,
   createChroniclePortfolioV0,
@@ -26,7 +30,7 @@ const baseProofObject = {
 }
 
 function makeEntry(proofObjectId) {
-  return createChronicleEntryV0({
+  return buildChronicleEntryV0FromAdmittedProofObject({
     ...baseProofObject,
     proof_object_id: proofObjectId,
     proof_ref: `receiptos://portable-proof-object/${proofObjectId}`,
