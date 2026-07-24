@@ -6,12 +6,20 @@ import { createChronicleTimeline } from "../src/chronicle_mvp_timeline_generator
 import { POSITION_ARTIFACT_VERSION_V0, computeArtifactRootV0 } from "../src/chronicle_position_artifact.mjs"
 import { COLLECTION_VERSION_V0, computeCollectionRootV0 } from "../src/chronicle_collection.mjs"
 import { PORTFOLIO_VERSION_V0, computePortfolioRootV0 } from "../src/chronicle_portfolio.mjs"
+import { admitReceiptOSChronicleEntryV0, ReceiptOSAdmissionError } from "../src/chronicle_receiptos_admission.mjs"
+import { classifyEntryAdmission, IDENTITY_RESULT } from "../src/chronicle_entry_identity.mjs"
 
 const PORT = 8080
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const DATA_DIR = path.resolve(__dirname, "../data")
-const STORE_PATH = path.join(DATA_DIR, "chronicle-local-store.json")
+
+// CHRONICLE_STORE_PATH lets callers (tests) point the store at an isolated
+// temporary file instead of the tracked repository data file. Default
+// production behavior is unchanged: data/chronicle-local-store.json.
+const STORE_PATH = process.env.CHRONICLE_STORE_PATH
+  ? path.resolve(process.env.CHRONICLE_STORE_PATH)
+  : path.resolve(__dirname, "../data/chronicle-local-store.json")
+const DATA_DIR = path.dirname(STORE_PATH)
 
 /** @type {import('../src/chronicle_mvp_data_model.ts').ChronicleEntry[]} */
 const entryStore = []
@@ -107,6 +115,42 @@ function isValidChronicleEntry(entry) {
     entry.proof_object_refs.every(isValidProofObjectRef) &&
     typeof entry.created_at === "string"
   )
+}
+
+// A submission is "ReceiptOS-backed" when it claims a ReceiptOS-verified
+// identity, whether via the canonical chronicle_entry.v0 shape or the legacy
+// proof_object_refs[] shape. Such a claim can only be admitted through the
+// independent-recomputation boundary (admitReceiptOSChronicleEntryV0); no
+// route may accept it on shape validity alone.
+//
+// Detection MUST NOT depend solely on the self-declared, spoofable
+// source_system/proof_system marker fields: a caller could omit or alter
+// those while leaving the structural ReceiptOS fingerprints (the
+// receiptos:// proof_ref URI scheme, the proofobj- identity prefix, or the
+// canonical chronicle_entry.v0 schema literal itself) intact.
+const RECEIPTOS_PROOF_REF_PATTERN = /^receiptos:\/\/portable-proof-object\//
+const RECEIPTOS_PROOF_OBJECT_ID_PATTERN = /^proofobj-/
+
+function looksReceiptOSBackedRef(ref) {
+  if (!ref || typeof ref !== "object") return false
+  if (ref.proof_system === "ReceiptOS") return true
+  if (typeof ref.proof_ref === "string" && RECEIPTOS_PROOF_REF_PATTERN.test(ref.proof_ref)) return true
+  if (typeof ref.proof_object_id === "string" && RECEIPTOS_PROOF_OBJECT_ID_PATTERN.test(ref.proof_object_id)) return true
+  return false
+}
+
+function isReceiptOSBackedEntrySubmission(entry) {
+  if (!entry || typeof entry !== "object") return false
+
+  // The canonical chronicle_entry.v0 shape marker alone is sufficient: in
+  // this codebase a canonical entry can only be legitimately produced by
+  // the admission gate, regardless of what source_system claims or omits.
+  if (entry.schema === "chronicle_entry.v0") return true
+  if (typeof entry.proof_object_ref === "string" && RECEIPTOS_PROOF_REF_PATTERN.test(entry.proof_object_ref)) return true
+
+  if (Array.isArray(entry.proof_object_refs) && entry.proof_object_refs.some(looksReceiptOSBackedRef)) return true
+
+  return false
 }
 
 function isValidReceiptProofObject(proof) {
@@ -1295,80 +1339,6 @@ export function renderHtmlView(timeline, options = {}) {
 </html>`
 }
 
-function findExistingEntryByProofOrEntryId(entryId, proofObjectId) {
-  return entryStore.find((entry) => {
-    if (entry.entry_id === entryId) return true
-    return Array.isArray(entry.proof_object_refs) && entry.proof_object_refs.some((ref) => ref.proof_object_id === proofObjectId)
-  })
-}
-
-function findExistingEntryByEntryId(entryId) {
-  return entryStore.find((entry) => entry.entry_id === entryId)
-}
-
-function createProofObjectRef(proof) {
-  return {
-    proof_object_id: proof.proof_object_id,
-    proof_system: proof.proof_system,
-    receipt_root: proof.receipt_root,
-    proof_ref: proof.proof_ref,
-    replay_ref: proof.replay_ref,
-    anchor_ref: proof.anchor_ref,
-    metadata: proof.metadata && typeof proof.metadata === "object" ? { ...proof.metadata } : undefined,
-  }
-}
-
-function createEntryFromReceiptProof(proof) {
-  const proofRef = createProofObjectRef(proof)
-
-  return {
-    entry_id: `entry-${proof.proof_object_id}`,
-    proof_object_refs: [proofRef],
-    project_refs: Array.isArray(proof.project_refs) ? [...proof.project_refs] : undefined,
-    organization_refs: Array.isArray(proof.organization_refs) ? [...proof.organization_refs] : undefined,
-    relation_type: typeof proof.relation_type === "string" ? proof.relation_type : "imported",
-    chronology_position: typeof proof.chronology_position === "string" ? proof.chronology_position : undefined,
-    created_at: typeof proof.created_at === "string" ? proof.created_at : new Date().toISOString(),
-    metadata: {
-      label:
-        typeof proof.metadata?.label === "string"
-          ? proof.metadata.label
-          : `Imported proof ${proof.proof_object_id}`,
-      release: typeof proof.metadata?.release === "string" ? proof.metadata.release : undefined,
-      profile_id: typeof proof.metadata?.profile_id === "string" ? proof.metadata.profile_id : undefined,
-      position_id: typeof proof.metadata?.position_id === "string" ? proof.metadata.position_id : undefined,
-      imported_from: "ReceiptOS",
-      source_proof_object_id: proof.proof_object_id,
-      source_proof_ref: proof.proof_ref,
-    },
-  }
-}
-
-function createEntriesFromReceiptTimelineCapsule(capsule) {
-  const proofRef = createProofObjectRef(capsule.proof_object_ref)
-  const projectRefs = Array.isArray(capsule.project_refs) ? [...capsule.project_refs] : undefined
-  const defaultRelease = typeof capsule.proof_object_ref?.metadata?.release === "string" ? capsule.proof_object_ref.metadata.release : undefined
-
-  return capsule.events.map((event) => ({
-    entry_id: `entry-${event.event_id}`,
-    proof_object_refs: [proofRef],
-    project_refs: projectRefs,
-    relation_type: event.relation_type,
-    chronology_position: typeof event.chronology_position === "string" ? event.chronology_position : undefined,
-    created_at: event.created_at,
-    metadata: {
-      label: event.label,
-      release: typeof event.metadata?.release === "string" ? event.metadata.release : defaultRelease,
-      profile_id: typeof event.metadata?.profile_id === "string" ? event.metadata.profile_id : undefined,
-      position_id: typeof event.metadata?.position_id === "string" ? event.metadata.position_id : undefined,
-      imported_from: "ReceiptOS.timeline",
-      source_event_id: event.event_id,
-      source_proof_object_id: capsule.proof_object_ref.proof_object_id,
-      event_metadata: event.metadata && typeof event.metadata === "object" ? { ...event.metadata } : undefined,
-    },
-  }))
-}
-
 loadStore()
 
 export { createPositionArtifact, createPositionSnapshot, createCollection, createPortfolio }
@@ -1384,6 +1354,17 @@ const server = http.createServer(async (request, response) => {
     if (request.method === "POST" && url.pathname === "/entries") {
       const entry = await readJsonBody(request)
 
+      // A caller cannot manufacture a ReceiptOS-backed Entry (canonical or
+      // legacy shape) by asserting the shape directly: admission for
+      // ReceiptOS-backed history requires independent recomputation, which
+      // only happens in-process via /import/receipt.
+      if (isReceiptOSBackedEntrySubmission(entry)) {
+        return json(response, 400, {
+          ok: false,
+          error: "ReceiptOS-backed Chronicle Entries cannot be submitted directly to /entries. Use POST /import/receipt with { evidence, proof_object } so admission can be independently verified.",
+        })
+      }
+
       if (!isValidChronicleEntry(entry)) {
         return json(response, 400, {
           ok: false,
@@ -1392,38 +1373,94 @@ const server = http.createServer(async (request, response) => {
         })
       }
 
+      const admission = classifyEntryAdmission(entryStore, entry)
+
+      if (admission.result === IDENTITY_RESULT.IDEMPOTENT) {
+        return json(response, 200, {
+          ok: true,
+          stored: admission.existing.entry_id,
+          existing: true,
+          entry_count: entryStore.length,
+          store_path: STORE_PATH,
+        })
+      }
+
+      if (admission.result === IDENTITY_RESULT.CONFLICT) {
+        return json(response, 409, {
+          ok: false,
+          error: "Conflicting Chronicle Entry: the same identity already exists with different canonical content.",
+          existing_entry_id: admission.existing.entry_id,
+          entry_count: entryStore.length,
+        })
+      }
+
       entryStore.push(structuredClone(entry))
       saveStore()
       return json(response, 201, {
         ok: true,
         stored: entry.entry_id,
+        existing: false,
         entry_count: entryStore.length,
         store_path: STORE_PATH,
       })
     }
 
     if (request.method === "POST" && url.pathname === "/import/receipt") {
-      const proof = await readJsonBody(request)
+      const body = await readJsonBody(request)
 
-      if (!isValidReceiptProofObject(proof)) {
+      // The old proof-object-only body is rejected here on purpose: a proof
+      // object alone carries no recomputation basis. Both the original
+      // evidence and the proof object are required.
+      if (!body || typeof body !== "object" || !body.evidence || !body.proof_object) {
         return json(response, 400, {
           ok: false,
-          error: "Invalid ReceiptOS proof object payload",
-          required: ["proof_object_id", "proof_system=ReceiptOS"],
+          error: "Invalid ReceiptOS import payload: requires both `evidence` (the original HandoffEvidence) and `proof_object` (PortableProofObjectV0). A proof object alone cannot be independently recomputed and is rejected as unverifiable.",
+          required: ["evidence", "proof_object"],
         })
       }
 
-      const entry = createEntryFromReceiptProof(proof)
-      const existing = findExistingEntryByProofOrEntryId(entry.entry_id, proof.proof_object_id)
+      const entryOptions = body.options && typeof body.options === "object"
+        ? {
+          entryId: typeof body.options.entryId === "string" ? body.options.entryId : undefined,
+          labels: Array.isArray(body.options.labels) ? body.options.labels : undefined,
+          notes: typeof body.options.notes === "string" ? body.options.notes : undefined,
+          createdFrom: typeof body.options.createdFrom === "string" ? body.options.createdFrom : undefined,
+        }
+        : undefined
 
-      if (existing) {
+      let entry
+      try {
+        entry = admitReceiptOSChronicleEntryV0(body.evidence, body.proof_object, entryOptions)
+      } catch (error) {
+        if (error instanceof ReceiptOSAdmissionError) {
+          return json(response, 422, {
+            ok: false,
+            error: error.message,
+            code: error.code,
+          })
+        }
+        throw error
+      }
+
+      const admission = classifyEntryAdmission(entryStore, entry)
+
+      if (admission.result === IDENTITY_RESULT.IDEMPOTENT) {
         return json(response, 200, {
           ok: true,
           imported: false,
           existing: true,
-          entry_id: existing.entry_id,
+          entry_id: admission.existing.entry_id,
           entry_count: entryStore.length,
           store_path: STORE_PATH,
+        })
+      }
+
+      if (admission.result === IDENTITY_RESULT.CONFLICT) {
+        return json(response, 409, {
+          ok: false,
+          error: "Conflicting Chronicle Entry: the same identity (entry_id or proof_object_ref) already exists with different canonical content.",
+          existing_entry_id: admission.existing.entry_id,
+          entry_count: entryStore.length,
         })
       }
 
@@ -1434,7 +1471,6 @@ const server = http.createServer(async (request, response) => {
         ok: true,
         imported: true,
         existing: false,
-        imported_proof_object_id: proof.proof_object_id,
         created_entry_id: entry.entry_id,
         entry_count: entryStore.length,
         store_path: STORE_PATH,
@@ -1452,38 +1488,15 @@ const server = http.createServer(async (request, response) => {
         })
       }
 
-      const candidateEntries = createEntriesFromReceiptTimelineCapsule(capsule)
-      let importedCount = 0
-      let existingCount = 0
-      const importedEntryIds = []
-      const existingEntryIds = []
-
-      for (const entry of candidateEntries) {
-        const existing = findExistingEntryByEntryId(entry.entry_id)
-        if (existing) {
-          existingCount += 1
-          existingEntryIds.push(existing.entry_id)
-          continue
-        }
-
-        entryStore.push(structuredClone(entry))
-        importedCount += 1
-        importedEntryIds.push(entry.entry_id)
-      }
-
-      if (importedCount > 0) saveStore()
-
-      return json(response, importedCount > 0 ? 201 : 200, {
-        ok: true,
-        imported: importedCount > 0,
-        imported_count: importedCount,
-        existing_count: existingCount,
-        imported_entry_ids: importedEntryIds,
-        existing_entry_ids: existingEntryIds,
-        entry_count: entryStore.length,
-        project_refs: capsule.project_refs,
-        proof_object_id: capsule.proof_object_ref.proof_object_id,
-        store_path: STORE_PATH,
+      // This route's own shape validator (isValidReceiptTimelineCapsule ->
+      // isValidReceiptProofObject) already requires proof_system === "ReceiptOS"
+      // literally, so every payload that reaches this point is ReceiptOS-backed
+      // by construction. This route's payload shape carries no original
+      // evidence, so no candidate here ever has a recomputation basis: fail
+      // closed unconditionally rather than admit on shape validity alone.
+      return json(response, 400, {
+        ok: false,
+        error: "ReceiptOS-backed timeline capsules cannot be admitted via /import/receipt-timeline: this payload carries no original evidence to independently recompute against. Import each event's underlying evidence through /import/receipt instead.",
       })
     }
 
@@ -1498,28 +1511,63 @@ const server = http.createServer(async (request, response) => {
         })
       }
 
+      // A bundle carries no original evidence for any member entry. If any
+      // entry claims a ReceiptOS-backed identity, the whole bundle is
+      // rejected rather than silently admitting the unverifiable members.
+      if (bundle.entries.some(isReceiptOSBackedEntrySubmission)) {
+        return json(response, 400, {
+          ok: false,
+          error: "This bundle contains a ReceiptOS-backed Entry. Bundles carry no original evidence and cannot be independently recomputed; import ReceiptOS-backed entries individually through /import/receipt.",
+        })
+      }
+
+      // Preflight every candidate against a working copy of the store before
+      // mutating anything. If any candidate conflicts, the whole bundle is
+      // rejected with no partial insert -- never a silent conflicting-content
+      // discard, never a half-applied bundle.
+      const workingSet = [...entryStore]
+      const preflight = []
+
+      for (const rawEntry of bundle.entries) {
+        const candidate = structuredClone(rawEntry)
+        candidate.metadata = {
+          ...(candidate.metadata && typeof candidate.metadata === "object" ? candidate.metadata : {}),
+          source_bundle_scope: bundle.scope,
+        }
+
+        const admission = classifyEntryAdmission(workingSet, candidate)
+        preflight.push({ candidate, admission })
+
+        if (admission.result === IDENTITY_RESULT.NEW) {
+          workingSet.push(candidate)
+        }
+      }
+
+      const conflicts = preflight.filter((entry) => entry.admission.result === IDENTITY_RESULT.CONFLICT)
+      if (conflicts.length > 0) {
+        return json(response, 409, {
+          ok: false,
+          error: "Conflicting Chronicle Entry in bundle: one or more entries share an identity with existing or other in-bundle content that differs canonically. No entry from this bundle was stored.",
+          conflicting_entry_ids: conflicts.map((entry) => entry.candidate.entry_id),
+          entry_count: entryStore.length,
+        })
+      }
+
       let importedCount = 0
       let existingCount = 0
       const importedEntryIds = []
       const existingEntryIds = []
 
-      for (const entry of bundle.entries) {
-        const existing = findExistingEntryByEntryId(entry.entry_id)
-        if (existing) {
+      for (const { candidate, admission } of preflight) {
+        if (admission.result === IDENTITY_RESULT.IDEMPOTENT) {
           existingCount += 1
-          existingEntryIds.push(existing.entry_id)
+          existingEntryIds.push(admission.existing.entry_id)
           continue
         }
 
-        const importedEntry = structuredClone(entry)
-        importedEntry.metadata = {
-          ...(importedEntry.metadata && typeof importedEntry.metadata === "object" ? importedEntry.metadata : {}),
-          source_bundle_scope: bundle.scope,
-        }
-
-        entryStore.push(importedEntry)
+        entryStore.push(candidate)
         importedCount += 1
-        importedEntryIds.push(entry.entry_id)
+        importedEntryIds.push(candidate.entry_id)
       }
 
       if (importedCount > 0) saveStore()
