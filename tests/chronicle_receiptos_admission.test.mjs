@@ -166,7 +166,7 @@ test("module API: no export named/presented as canonical Chronicle Entry creatio
     false,
     "chronicle_entry.mjs must not export a public-looking createChronicleEntryV0",
   )
-  assert.equal(typeof chronicleEntryModule.buildChronicleEntryV0FromAdmittedProofObject, "function")
+  assert.equal("buildChronicleEntryV0FromAdmittedProofObject" in chronicleEntryModule, false)
 
   // The only public creation API is admitReceiptOSChronicleEntryV0, and it
   // requires both evidence and a proof object -- a proof object alone,

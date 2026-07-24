@@ -1,40 +1,26 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-// This suite tests portfolio_root math over opaque entry_id refs only; it
-// does not exercise or claim ReceiptOS admission. It deliberately calls the
-// internal field-mapping builder directly (white-box fixture construction)
-// rather than the public admission gate, which requires real evidence.
-import { buildChronicleEntryV0FromAdmittedProofObject } from "../src/chronicle_entry.mjs"
 import {
   computeChroniclePortfolioRootV0,
   createChroniclePortfolioV0,
   verifyChroniclePortfolioV0,
 } from "../src/chronicle_portable_history.mjs"
-
-const baseProofObject = {
-  schema: "receiptos.portable_proof_object.v0",
-  proof_object_id: "proofobj-alpha",
-  proof_system: "ReceiptOS",
-  receipt_root: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  proof_ref: "receiptos://portable-proof-object/proofobj-alpha",
-  replay_ref: "receiptos://replay/alpha",
-  anchor_ref: null,
-  created_at: "2026-06-29T12:00:00.000Z",
-  relation_type: "imported",
-  project_refs: ["workspace"],
-  source_evidence_ref: "example://alpha.json",
-  producer: { runtime: "Stealth", agent_id: null, generated_by: null, source_schema: "stealth.session.evidence.v1" },
-  metadata: { label: "Alpha", session_id: "alpha", directory: "C:/demo/a", position_id: "workspace" },
-  evidence_capsule: { schema: "receiptos.evidence_capsule.v0" },
-  provenance_summary: { schema: "receiptos.provenance_summary.v0" },
-}
+// Aggregate tests treat Chronicle Entries as opaque, already-admitted inputs.
+// They verify only portfolio reference-set math and make no member-validity claim.
 
 function makeEntry(proofObjectId) {
-  return buildChronicleEntryV0FromAdmittedProofObject({
-    ...baseProofObject,
-    proof_object_id: proofObjectId,
-    proof_ref: `receiptos://portable-proof-object/${proofObjectId}`,
-  })
+  return {
+    schema: "chronicle_entry.v0",
+    entry_id: `entry-${proofObjectId}`,
+    source_system: "ReceiptOS",
+    receipt_root: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    proof_object_ref: `receiptos://portable-proof-object/${proofObjectId}`,
+    evidence_capsule_ref: `embedded:${proofObjectId}:evidence_capsule`,
+    provenance_summary_ref: `embedded:${proofObjectId}:provenance_summary`,
+    created_from: "test-fixture://opaque-entry",
+    labels: [],
+    notes: null,
+  }
 }
 
 test("stable portfolio_root with sorted collection_refs", () => {
