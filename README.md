@@ -85,32 +85,20 @@ Chronicle explores whether that verified history can become a durable asset clas
 
 ## Repository structure
 
-- `docs/VISION.md`
-- `docs/PHILOSOPHY.md`
-- `docs/RECEIPTS_AS_ASSETS.md`
-- `docs/CHRONICLE_MODEL.md`
-- `docs/OWNERSHIP.md`
-- `docs/COMPOSITION.md`
-- `docs/TOKENIZATION.md`
-- `docs/OPEN_QUESTIONS.md`
-- `docs/NON_GOALS.md`
-- `docs/chronicle_mvp_v0.md`
-- `docs/chronicle_first_build_plan_v0.md`
-- `docs/chronicle_mvp_explainer.md`
-- `docs/chronicle_position_v0.md`
-- `docs/chronicle_asset_model_v0.md`
-- `docs/chronicle_mvp_e2e_demo.md`
-- `docs/images/chronicle-mvp-flow.png`
-- `examples/chronicle-example.json`
-- `examples/receipt-example.json`
-- `examples/chronicle-mvp-example.json`
-- `examples/chronicle-mvp-generated-timeline.json`
-- `src/chronicle_mvp_data_model.ts`
-- `src/chronicle_mvp_timeline_generator.ts`
-- `src/chronicle_mvp_timeline_generator_core.mjs`
-- `scripts/validate_chronicle_mvp_timeline.mjs`
-- `scripts/run_chronicle_mvp_demo.mjs`
-- `scripts/run_chronicle_node.mjs`
+The active implementation is organized around these areas:
+
+- `specs/` — canonical Entry, Graph, Timeline, Profile, Release View, and Portfolio v0 boundaries
+- `src/chronicle_receiptos_admission.mjs` — independently verifies ReceiptOS evidence before creating an Entry
+- `src/chronicle_receiptos_root.mjs` — ReceiptOS receipt-root recomputation
+- `src/chronicle_entry.mjs` and `src/chronicle_entry_identity.mjs` — Entry schema version and identity-conflict classification
+- `src/chronicle_position_artifact.mjs`, `src/chronicle_collection.mjs`, and `src/chronicle_portfolio.mjs` — portable history aggregates and deterministic roots
+- `src/chronicle_mvp_timeline_generator_core.mjs` — timeline projection
+- `scripts/run_chronicle_node.mjs` — local HTTP node and views
+- `scripts/create-chronicle-entry.mjs` — admitted ReceiptOS Entry creation
+- `scripts/create-chronicle-portfolio.mjs` and `scripts/verify-chronicle-portfolio.mjs` — portable portfolio tooling
+- `tests/` — admission, ingress, identity, root, aggregate, route, and golden-vector coverage
+- `examples/` — MVP, portable proof-object, Entry, and Portfolio examples
+- `docs/` — architecture, principles, research, and end-to-end explanations
 
 ## Chronicle MVP End-to-End Flow
 
@@ -174,14 +162,11 @@ Invoke-RestMethod http://localhost:8080/health
 
 ### 3. POST a manual Chronicle entry
 
-Legacy MVP model example:
+Compatibility-only legacy model example:
 
-- this example uses the legacy Chronicle MVP `proof_object_refs[]` structure;
-- it is not the canonical `chronicle_entry.v0` wire shape;
-- canonical v0 uses singular `proof_object_ref` plus separate `receipt_root`;
-- `proof_object_ref` references `receiptos.portable_proof_object.v0`;
-- multiple proof objects belong to a higher Chronicle aggregate layer or a future schema version;
-- migration of the legacy MVP implementation is a separate follow-up;
+- direct `POST /entries` remains available for non-ReceiptOS legacy entries;
+- ReceiptOS-backed Entries are rejected on this route, including canonical-looking or disguised legacy payloads;
+- import ReceiptOS material through `POST /import/receipt`, which requires original evidence and independently recomputes the receipt root;
 - see `specs/chronicle_entry_v0.md` for the canonical v0 boundary.
 
 ```powershell
@@ -190,7 +175,7 @@ $entry = @{
   proof_object_refs = @(
     @{
       proof_object_id = "proofobj-receiptos-manual-001"
-      proof_system = "ReceiptOS"
+      proof_system = "ExampleProofSystem"
       receipt_root = "0xproofroot-manual-001"
       proof_ref = "receiptos://proof/manual/001"
       replay_ref = "receiptos://replay/manual/001"
@@ -222,61 +207,36 @@ Invoke-RestMethod http://localhost:8080/entries
 
 POST `/import/receipt`
 
-Example request:
+ReceiptOS admission requires both the original HandoffEvidence and its `receiptos.portable_proof_object.v0`. A proof object alone is unverifiable and is rejected.
+
+Example request using the tracked conformance fixtures:
 
 ```powershell
-$proof = Get-Content .\examples\receipt-import-example.json -Raw
+$evidence = Get-Content .\tests\fixtures\receiptos\session-evidence.sample.json -Raw | ConvertFrom-Json
+$proofObject = Get-Content .\tests\fixtures\receiptos\portable-proof-object.sample.json -Raw | ConvertFrom-Json
+$payload = @{ evidence = $evidence; proof_object = $proofObject } | ConvertTo-Json -Depth 100
 
 Invoke-RestMethod -Method Post `
   -Uri http://localhost:8080/import/receipt `
   -ContentType 'application/json' `
-  -Body $proof
+  -Body $payload
 ```
 
-Expected result:
+The admission gate independently recomputes the receipt root and checks the proof object's root, embedded capsule, verifier result, canonical `proof_object_id`, and canonical `proof_ref` before creating a `chronicle_entry.v0`.
 
-- a Chronicle Entry is created automatically
-- the imported proof becomes visible in `/entries`
-- the imported proof appears in `/timeline`
-- the imported proof appears in `/chronicle.md`
-- the imported proof appears in `/view`
+- first admission: `201`
+- identical canonical re-import: `200`, without a duplicate
+- same identity with different canonical content: `409`
+- malformed input: `400`
+- evidence or proof inconsistency: `422`
 
-This route may report an existing identity as not newly imported when
-`proof_object_id` or `entry_id` already matches a stored entry.
-
-- Canonical `chronicle_entry.v0` semantics permit idempotence only for an
-  exact byte-for-byte re-import of the previously accepted portable proof
-  object.
-- The same `proof_object_id`, or the same derived/supplied `entry_id`, with
-  non-identical portable-object bytes is an explicit identity conflict, not
-  an idempotent re-import.
-- Such a conflict must not be overwritten or silently deduplicated.
-- The current legacy MVP `/import/receipt` route does not yet perform this
-  byte-level collision check.
-- Normative re-import and identity-conflict behavior is pinned in
-  `specs/chronicle_entry_v0.md`.
+Accepted Entries appear in `/entries`, `/timeline`, `/chronicle.md`, and `/view`. Conflicting content is never overwritten or silently deduplicated. Normative identity behavior is defined in `specs/chronicle_entry_v0.md`.
 
 ## Import Receipt Timeline
 
-Example PowerShell command:
+`POST /import/receipt-timeline` is retained as a legacy endpoint but fails closed for ReceiptOS timeline capsules. That payload shape contains no original evidence, so Chronicle cannot independently recompute the receipt root.
 
-```powershell
-$capsule = Get-Content .\examples\receipt-timeline-import-example.json -Raw
-
-Invoke-RestMethod -Method Post `
-  -Uri http://localhost:8080/import/receipt-timeline `
-  -ContentType 'application/json' `
-  -Body $capsule
-```
-
-This imports multiple timeline events from one ReceiptOS-style capsule, creates one Chronicle Entry per event, preserves the shared proof reference, and makes the result visible in `/entries`, `/timeline`, `/chronicle.md`, `/view`, and `/project/:project_ref/view`.
-
-Skipping already-imported event IDs is current legacy MVP route behavior. It
-is not sufficient to establish canonical byte-identical idempotence: a
-repeated identity with different underlying portable-object bytes must be
-treated as an explicit conflict under the canonical Entry v0 rule. Migrating
-this route to perform that check is a separate implementation follow-up. See
-`specs/chronicle_entry_v0.md`.
+Import each event's underlying evidence and portable proof object through `POST /import/receipt` instead. The legacy endpoint returns `400` and does not write any Entry.
 
 ### 5. Generate timeline
 
@@ -395,6 +355,8 @@ Invoke-RestMethod -Method Post `
   -Body $bundle
 ```
 
+Bundle import is supported only when every member is non-ReceiptOS-backed. Because a bundle carries no original evidence, a bundle containing any ReceiptOS-backed Entry is rejected atomically. Import those Entries individually through `POST /import/receipt`. Canonically identical non-ReceiptOS duplicates are idempotent; an identity conflict rejects the whole bundle without partial writes.
+
 The local node now uses file-backed local storage in `data/chronicle-local-store.json`.
 
 Delete `data/chronicle-local-store.json` to clear local state.
@@ -417,7 +379,7 @@ This MVP flow is intended to prove only that Chronicle can:
 - link Entries with Chronicle Graph edges
 - project ordered continuity as a Chronicle Timeline generated from Chronicle Entries and Chronicle Graph edges
 
-It is explicitly not yet implementing Profile, Portfolio, Release View, ownership, NFT, marketplace, or reputation logic.
+The local node now implements derived Project, Release, Profile, Position, Artifact, Collection, and Portfolio views. These are recomputable continuity views and deterministic reference-set aggregates; Chronicle still does not certify, score, sign, create ownership, or implement NFT, marketplace, or reputation logic.
 
 ## Scope
 
@@ -440,9 +402,17 @@ This repository is not about:
 
 Chronicle exists to define the conceptual substrate before any transport or monetization layer hardens into the wrong abstraction.
 
-## CI
+## Tests and CI
 
-Chronicle runs the MVP demo in GitHub Actions on pull requests and pushes to main.
+Run the complete Node test suite locally:
+
+```bash
+node --test tests/*.test.mjs
+```
+
+The suite covers ReceiptOS admission and ingress hardening, identity conflicts, receipt-root parity, deterministic Artifact/Collection/Portfolio roots, route wiring, and golden vectors.
+
+GitHub Actions runs the MVP demo on pull requests and pushes to `main`. The workflow's package test step runs only when a `package.json` test script exists; this repository currently has no `package.json`, so use the command above for the complete test suite.
 
 ## License
 
