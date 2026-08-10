@@ -454,7 +454,7 @@ node --test tests/*.test.mjs
 
 The suite covers ReceiptOS admission and ingress hardening, identity conflicts, receipt-root parity, deterministic Artifact/Collection/Portfolio roots, route wiring, and golden vectors.
 
-GitHub Actions runs the MVP demo on pull requests and pushes to `main`. The workflow's package test step runs only when a `package.json` test script exists; this repository currently has no `package.json`, so use the command above for the complete test suite.
+GitHub Actions runs `node --test tests/*.test.mjs` on pull requests and pushes covered by the workflow, then runs the MVP demo.
 
 ## License
 
