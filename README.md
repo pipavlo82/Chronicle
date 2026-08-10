@@ -6,17 +6,21 @@ A research project exploring receipts as a new digital asset class.
 
 **Chronicle is a continuity layer for proof-bearing work.**
 
-**ReceiptOS proves what happened.**  
-**Chronicle explains how proven events become history.**
+**ReceiptOS** makes declared receipt properties independently recomputable and
+provides bounded verifier-conformance evidence.
+**Chronicle** admits proof-bearing records and derives continuity and history
+views from those admitted records.
+Neither layer independently proves real-world occurrence, actor identity,
+authority, ownership, or downstream judgment.
 
 ![Chronicle MVP flow](docs/images/chronicle-mvp-flow.png)
 
 MVP flow:
 
-ReceiptOS Proof Object  
-→ Chronicle Entry  
-→ Chronicle Graph  
-→ Chronicle Timeline  
+ReceiptOS Proof Object
+→ Chronicle Entry
+→ Chronicle Graph
+→ Chronicle Timeline
 → Human-readable Output
 
 Chronicle does not replace ReceiptOS verification.
@@ -29,7 +33,12 @@ Core formulations: see [Canonical Principles](docs/CANONICAL_PRINCIPLES.md).
 
 A longer MVP explanation is in `docs/chronicle_mvp_explainer.md`.
 
-Chronicle follows a simple rule: history should begin only after correctness has survived independent verification. Without the proof step, history becomes a story someone tells about what happened, not a fact others can re-derive. See: [Verification Before History](docs/verification-before-history.md).
+Chronicle follows a simple rule: history may begin only after the required
+receipt claims have passed the declared admission checks. That is not a claim
+of universal correctness or proof of real-world facts; without those checks,
+history is only a story someone tells about what happened, not a record others
+can re-derive from admitted evidence. See:
+[Verification Before History](docs/verification-before-history.md).
 
 
 Chronicle starts from a simple premise:
@@ -73,13 +82,21 @@ The core object is the receipt itself:
 
 ## Core thesis
 
-If AI systems, runtimes, and companies are transient, then the only durable object may be the verified history of what was done, by whom, under what conditions, with what evidence, and with what outcome.
+If AI systems, runtimes, and companies are transient, then the only durable
+object may be history backed by portable receipt evidence: recorded claims,
+conditions, evidence, outcomes, and relationships, together with independently
+recomputable admission findings.
 
-Chronicle explores whether that verified history can become a durable asset class in its own right.
+Chronicle explores whether that history can become a durable asset class in its
+own right. It does not claim to prove actor identity, authorship, authority, or
+real-world occurrence.
 
 ## Connections
 
-- **ReceiptOS** provides proof packaging, verification, replay-oriented evidence, and proof presentation.
+- **ReceiptOS** provides portable evidence and proof packaging, receipt-root
+  recomputation, declared verification surfaces, frozen counterfactual verifier
+  conformance for the exact committed profile, and replay-oriented evidence.
+  That conformance layer does not govern every Chronicle operation.
 - **CYPHES** provides work, workflow meaning, and settlement.
 - **Chronicle** explores ownership, composition, transfer, and long-term value of the resulting receipts.
 
@@ -102,10 +119,10 @@ The active implementation is organized around these areas:
 
 ## Chronicle MVP End-to-End Flow
 
-ReceiptOS Proof Object  
-→ Chronicle Entry  
-→ Chronicle Graph  
-→ Chronicle Timeline  
+ReceiptOS Proof Object
+→ Chronicle Entry
+→ Chronicle Graph
+→ Chronicle Timeline
 → Human-readable Output
 
 The current Chronicle MVP can now be demonstrated end to end using:
@@ -365,9 +382,9 @@ Delete `data/chronicle-local-store.json` to clear local state.
 
 The first Chronicle implementation target is intentionally small:
 
-ReceiptOS Proof Object  
-→ Chronicle Entry  
-→ Chronicle Graph  
+ReceiptOS Proof Object
+→ Chronicle Entry
+→ Chronicle Graph
 → Chronicle Timeline
 
 The repository now includes a minimal implementation-neutral MVP data model in `src/chronicle_mvp_data_model.ts`, a timeline generator in `src/chronicle_mvp_timeline_generator.ts`, a runtime generator core in `src/chronicle_mvp_timeline_generator_core.mjs`, a matching example fixture in `examples/chronicle-mvp-example.json`, and a generated timeline example in `examples/chronicle-mvp-generated-timeline.json`.
@@ -380,6 +397,31 @@ This MVP flow is intended to prove only that Chronicle can:
 - project ordered continuity as a Chronicle Timeline generated from Chronicle Entries and Chronicle Graph edges
 
 The local node now implements derived Project, Release, Profile, Position, Artifact, Collection, and Portfolio views. These are recomputable continuity views and deterministic reference-set aggregates; Chronicle still does not certify, score, sign, create ownership, or implement NFT, marketplace, or reputation logic.
+
+## Current verification boundary
+
+Chronicle currently implements:
+
+- evidence + portable-proof-object admission
+- independent receipt-root recomputation
+- internal capsule/verifier-result consistency checks
+- canonical identity and conflict handling
+- deterministic local Artifact, Collection, and Portfolio roots
+- bounded local continuity/history views
+
+ReceiptOS-backed admission remains distinct from legacy compatibility routes:
+import ReceiptOS material through the evidence-bearing import path; legacy
+routes do not substitute for independent recomputation.
+
+Explicit nonclaims:
+
+- no global canonical head
+- no general predecessor discovery
+- no global freshness guarantee
+- no complete replay/equivocation protocol
+- no global append/ingest consensus
+- no certification, scoring, signing, ownership creation, or universal
+  historical truth
 
 ## Scope
 
@@ -412,7 +454,7 @@ node --test tests/*.test.mjs
 
 The suite covers ReceiptOS admission and ingress hardening, identity conflicts, receipt-root parity, deterministic Artifact/Collection/Portfolio roots, route wiring, and golden vectors.
 
-GitHub Actions runs the MVP demo on pull requests and pushes to `main`. The workflow's package test step runs only when a `package.json` test script exists; this repository currently has no `package.json`, so use the command above for the complete test suite.
+GitHub Actions runs `node --test tests/*.test.mjs` on pull requests and pushes covered by the workflow, then runs the MVP demo.
 
 ## License
 

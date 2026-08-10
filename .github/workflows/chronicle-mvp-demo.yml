@@ -30,18 +30,8 @@ jobs:
             echo "No package.json found; skipping dependency install"
           fi
 
-      - name: Run tests if available
-        shell: bash
-        run: |
-          if [ -f package.json ]; then
-            if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.test ? 0 : 1)"; then
-              npm test
-            else
-              echo "No test script found; skipping tests"
-            fi
-          else
-            echo "No package.json found; skipping tests"
-          fi
+      - name: Run complete Node test suite
+        run: node --test tests/*.test.mjs
 
       - name: Run Chronicle MVP demo
         run: node scripts/run_chronicle_mvp_demo.mjs
